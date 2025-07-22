@@ -1,7 +1,7 @@
 [package]
 name = "deadlocked"
 version = "4.2.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 bytemuck = "1.22"

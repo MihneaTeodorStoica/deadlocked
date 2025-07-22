@@ -32,7 +32,7 @@ fn main() {
 
     // this runs as x11 for now, because wayland decorations for winit are not good
     // and don't support disabling the maximize button
-    std::env::remove_var("WAYLAND_DISPLAY");
+    unsafe { std::env::remove_var("WAYLAND_DISPLAY") };
 
     if let Ok(username) = std::env::var("USER") {
         if username == "root" {
