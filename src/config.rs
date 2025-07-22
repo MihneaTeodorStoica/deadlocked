@@ -1,6 +1,6 @@
 use std::{fs::read_to_string, path::Path, time::Duration};
 
-use eframe::egui::Color32;
+use egui::Color32;
 use log::warn;
 use serde::{Deserialize, Serialize};
 

@@ -1,10 +1,11 @@
-use eframe::egui::{self, vec2, Align, Align2, Color32, DragValue, Sense, Ui};
-use std::{sync::mpsc, time::Duration};
+use egui::{pos2, Align, Align2, Color32, Context, DragValue, Sense, Stroke, Ui};
+use egui_glow::glow;
 use strum::IntoEnumIterator;
 
 use crate::{
+    app::App,
     color::{Color, Colors},
-    config::{parse_config, write_config, AimbotStatus, Config, VERSION},
+    config::{write_config, AimbotStatus, VERSION},
     constants::cs2,
     key_codes::KeyCode,
     message::Message,
@@ -18,45 +19,61 @@ pub enum Tab {
     Colors,
 }
 
-pub struct Gui {
-    tx: mpsc::Sender<Message>,
-    rx: mpsc::Receiver<Message>,
-    current_tab: Tab,
-    config: Config,
-    status: AimbotStatus,
-    mouse_status: DeviceStatus,
-    frame_times: Vec<Duration>,
-    average_frame_time: Duration,
-}
-
-impl Gui {
-    pub fn new(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) -> Self {
-        // read config
-        let config = parse_config();
-        // override config if invalid
-        write_config(&config);
-        let status = AimbotStatus::GameNotStarted;
-        let out = Self {
-            tx,
-            rx,
-            current_tab: Tab::Aimbot,
-            config,
-            status,
-            mouse_status: DeviceStatus::NotFound,
-            frame_times: Vec::with_capacity(50),
-            average_frame_time: Duration::ZERO,
-        };
-        write_config(&out.config);
-        out
-    }
-
-    fn send_config(&self) {
+impl App {
+    pub fn send_config(&self) {
         self.send_message(Message::Config(self.config.clone()));
         write_config(&self.config);
     }
 
-    fn send_message(&self, message: Message) {
+    pub fn send_message(&self, message: Message) {
         self.tx.send(message).expect("aimbot thread died");
+    }
+
+    fn gui(&mut self, ctx: &Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.spacing_mut().item_spacing = egui::vec2(6.0, 4.0);
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.current_tab, Tab::Aimbot, "Aimbot");
+                ui.selectable_value(&mut self.current_tab, Tab::Unsafe, "Unsafe");
+                ui.selectable_value(&mut self.current_tab, Tab::Colors, "Colors");
+
+                ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                    if ui.button("Report Issues").clicked() {
+                        ctx.open_url(egui::OpenUrl {
+                            url: String::from("https://github.com/avitran0/deadlocked/issues"),
+                            new_tab: false,
+                        });
+                    }
+                });
+            });
+            ui.separator();
+
+            self.add_game_status(ui);
+            ui.separator();
+
+            match self.current_tab {
+                Tab::Aimbot => self.aimbot_grid(ui),
+                Tab::Unsafe => self.unsafe_grid(ui),
+                Tab::Colors => self.colors_grid(ui),
+            }
+        });
+
+        let font = egui::FontId::proportional(12.0);
+        let text_size = ctx.fonts(|fonts| {
+            fonts
+                .layout_no_wrap(String::from(VERSION), font.clone(), Color32::WHITE)
+                .size()
+        });
+
+        ctx.layer_painter(egui::LayerId::background()).text(
+            Align2::RIGHT_BOTTOM
+                .align_size_within_rect(text_size, ctx.screen_rect().shrink(4.0))
+                .max,
+            Align2::RIGHT_BOTTOM,
+            VERSION,
+            font.clone(),
+            Colors::SUBTEXT,
+        );
     }
 
     fn aimbot_grid(&mut self, ui: &mut Ui) {
@@ -241,7 +258,7 @@ impl Gui {
         });
     }
 
-    fn add_game_status(&mut self, ui: &mut Ui) {
+    fn add_game_status(&self, ui: &mut Ui) {
         ui.horizontal_top(|ui| {
             ui.label(
                 egui::RichText::new(self.status.string())
@@ -293,94 +310,84 @@ impl Gui {
         }
         None
     }
-}
 
-impl eframe::App for Gui {
-    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        // makes it more inefficient to force draw 60fps, but else the mouse disconnect message does not show up
-        // todo: when update is split into tick and show, put message parsing into tick and force update the ui when message are received
-        ctx.request_repaint();
+    pub fn render(&mut self) {
+        use glow::HasContext as _;
 
         while let Ok(message) = self.rx.try_recv() {
             match message {
                 Message::Status(status) => self.status = status,
                 Message::MouseStatus(status) => self.mouse_status = status,
-                Message::FrameTime(time) => {
-                    self.frame_times.push(time);
-                    if self.frame_times.len() >= self.frame_times.capacity() {
-                        self.average_frame_time = self.frame_times.iter().sum::<Duration>()
-                            / self.frame_times.len() as u32;
-                        self.frame_times.clear();
-                    }
-                }
                 _ => {}
             }
         }
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.spacing_mut().item_spacing = egui::vec2(6.0, 4.0);
-            ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.current_tab, Tab::Aimbot, "Aimbot");
-                ui.selectable_value(&mut self.current_tab, Tab::Unsafe, "Unsafe");
-                ui.selectable_value(&mut self.current_tab, Tab::Colors, "Colors");
-
-                ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                    if ui.button("Report Issues").clicked() {
-                        ctx.open_url(egui::OpenUrl {
-                            url: String::from("https://github.com/avitran0/deadlocked/issues"),
-                            new_tab: false,
-                        });
-                    }
-                });
+        let self_ptr = self as *mut Self;
+        self.gui_window.as_mut().unwrap().make_current().unwrap();
+        self.gui_glow
+            .as_mut()
+            .unwrap()
+            .run(self.gui_window.as_mut().unwrap().window(), |ctx| {
+                (unsafe { &mut *self_ptr }).gui(ctx)
             });
-            ui.separator();
 
-            self.add_game_status(ui);
-            ui.separator();
+        unsafe {
+            self.gui_gl
+                .as_mut()
+                .unwrap()
+                .clear_color(0.0, 0.0, 0.0, 1.0);
+            self.gui_gl.as_mut().unwrap().clear(glow::COLOR_BUFFER_BIT);
+        }
 
-            match self.current_tab {
-                Tab::Aimbot => self.aimbot_grid(ui),
-                Tab::Unsafe => self.unsafe_grid(ui),
-                Tab::Colors => self.colors_grid(ui),
-            }
-        });
+        self.gui_glow
+            .as_mut()
+            .unwrap()
+            .paint(self.gui_window.as_mut().unwrap().window());
 
-        let font = egui::FontId::proportional(12.0);
-        let text_size = ctx.fonts(|fonts| {
-            fonts
-                .layout_no_wrap(String::from(VERSION), font.clone(), Color32::WHITE)
-                .size()
-        });
+        self.gui_window.as_mut().unwrap().swap_buffers().unwrap();
+        self.gui_window.as_mut().unwrap().window().request_redraw();
 
-        ctx.layer_painter(egui::LayerId::background()).text(
-            Align2::RIGHT_BOTTOM
-                .align_size_within_rect(text_size, ctx.screen_rect().shrink(4.0))
-                .max,
-            Align2::RIGHT_BOTTOM,
-            VERSION,
-            font.clone(),
-            Colors::SUBTEXT,
+        self.overlay_window
+            .as_mut()
+            .unwrap()
+            .make_current()
+            .unwrap();
+        self.overlay_glow.as_mut().unwrap().run(
+            self.overlay_window.as_mut().unwrap().window(),
+            |egui_ctx| {
+                let painter = egui_ctx.debug_painter();
+                painter.circle(pos2(50.0, 50.0), 50.0, Color32::BLUE, Stroke::NONE);
+                egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
+                    ui.heading("Goodbye");
+                });
+            },
         );
 
-        let micro_time = self.average_frame_time.as_micros();
-        let frame_time = if micro_time > 1000 {
-            format!("{:.1} ms", micro_time as f32 / 1000.0)
-        } else {
-            format!("{} us", micro_time)
-        };
-        let color = if micro_time > 10000 {
-            Colors::RED
-        } else if micro_time > 5000 {
-            Colors::YELLOW
-        } else {
-            Colors::SUBTEXT
-        };
-        ctx.layer_painter(egui::LayerId::background()).text(
-            ctx.screen_rect().left_bottom() + vec2(4.0, -4.0),
-            Align2::LEFT_BOTTOM,
-            frame_time,
-            font,
-            color,
-        );
+        unsafe {
+            self.overlay_gl
+                .as_mut()
+                .unwrap()
+                .clear_color(0.0, 0.0, 0.0, 0.0);
+            self.overlay_gl
+                .as_mut()
+                .unwrap()
+                .clear(glow::COLOR_BUFFER_BIT);
+        }
+
+        self.overlay_glow
+            .as_mut()
+            .unwrap()
+            .paint(self.overlay_window.as_mut().unwrap().window());
+
+        self.overlay_window
+            .as_mut()
+            .unwrap()
+            .swap_buffers()
+            .unwrap();
+        self.overlay_window
+            .as_mut()
+            .unwrap()
+            .window()
+            .request_redraw();
     }
 }

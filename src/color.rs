@@ -1,5 +1,5 @@
 #![allow(unused)]
-use eframe::egui::Color32;
+use egui::Color32;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]

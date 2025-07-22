@@ -5,19 +5,20 @@ edition = "2021"
 
 [dependencies]
 bytemuck = "1.22"
-eframe = { version = "0.31", default-features = false, features = [
-    "wayland",
-    "x11",
-    "wgpu",
-] }
+egui = "0.32"
+egui_glow = { version = "0.32", features = ["winit"] }
+egui-winit = "0.32"
 env_logger = { version = "0.11", default-features = false }
 glam = { version = "0.30", features = ["bytemuck"] }
+glutin = "0.32"
+glutin-winit = "0.5"
 log = "0.4"
 nix = { version = "0.30", features = ["ioctl"] }
 rand = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 strum = { version = "0.27", features = ["derive"] }
 toml = "0.8"
+winit = "0.30"
 
 [profile.release]
 lto = true
