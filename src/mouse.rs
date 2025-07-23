@@ -1,17 +1,15 @@
 use std::{
-    fs::{self, read_dir, File, OpenOptions},
+    fs::{self, File, OpenOptions, read_dir},
     io::Write,
-    os::{fd::AsRawFd, unix::fs::FileTypeExt},
+    os::unix::fs::FileTypeExt,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use glam::{IVec2, Vec2};
 use log::warn;
-use nix::{ioctl_readwrite, libc};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DeviceStatus {
-    WorkingKernel(String),
     Working(String),
     Disconnected,
     PermissionsRequired,
@@ -31,28 +29,6 @@ struct InputEvent {
     code: u16,
     value: i32,
 }
-
-#[allow(unused)]
-#[repr(C)]
-struct MouseMove {
-    x: libc::c_int,
-    y: libc::c_int,
-}
-
-impl MouseMove {
-    pub fn from_vec(vec: &Vec2) -> Self {
-        Self {
-            x: vec.x as i32,
-            y: vec.y as i32,
-        }
-    }
-
-    pub const fn new() -> Self {
-        Self { x: 0, y: 0 }
-    }
-}
-
-ioctl_readwrite!(ioctl_mouse_move, 0xBE, 1, MouseMove);
 
 impl InputEvent {
     fn bytes(&self) -> Vec<u8> {
@@ -82,17 +58,6 @@ pub struct Mouse {
 
 impl Mouse {
     pub fn open() -> Self {
-        let stealthmem = std::path::Path::new("/dev/stealthmem");
-        if stealthmem.exists() {
-            return Self {
-                file: OpenOptions::new()
-                    .write(true)
-                    .open("/dev/stealthmem")
-                    .unwrap(),
-                status: DeviceStatus::WorkingKernel("/dev/stealthmem".to_string()),
-            };
-        }
-
         for file in read_dir("/dev/input").unwrap() {
             let entry = file.unwrap();
             if !entry.file_type().unwrap().is_char_device() {
@@ -129,7 +94,7 @@ impl Mouse {
                     return Self {
                         file,
                         status: DeviceStatus::Working(device_name),
-                    }
+                    };
                 }
                 Err(_) => {
                     warn!("please add your user to the input group or execute with sudo");
@@ -154,12 +119,6 @@ impl Mouse {
     }
 
     pub fn move_rel(&mut self, coords: &Vec2) {
-        if let DeviceStatus::WorkingKernel(_) = self.status {
-            let mut coords = MouseMove::from_vec(coords);
-            unsafe {
-                ioctl_mouse_move(self.file.as_raw_fd(), &mut coords as *mut MouseMove).unwrap()
-            };
-        }
         let coords = IVec2::new(coords.x as i32, coords.y as i32);
 
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
@@ -197,14 +156,7 @@ impl Mouse {
     }
 
     pub fn is_valid(&mut self) -> bool {
-        if let DeviceStatus::WorkingKernel(_) = self.status {
-            // jesus christ the poor rust
-            unsafe {
-                ioctl_mouse_move(self.file.as_raw_fd(), &raw mut MOUSE_ZERO).is_ok()
-            }
-        } else {
-            self.file.write_all(&SYN.bytes()).is_ok()
-        }
+        self.file.write_all(&SYN.bytes()).is_ok()
     }
 }
 
@@ -217,8 +169,6 @@ const SYN: InputEvent = InputEvent {
     code: SYN_REPORT,
     value: 0,
 };
-
-static mut MOUSE_ZERO: MouseMove = MouseMove::new();
 
 fn decompose_bits(bitmask: u64, index: usize) -> Vec<u64> {
     (0..64)

@@ -17,35 +17,6 @@ use strum::{AsRefStr, EnumIter, EnumString};
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Weapon {
-    #[default]
-    Unknown,
-
-    // Knives
-    Bayonet,
-    Knife,
-    KnifeBowie,
-    KnifeButterfly,
-    KnifeCanis,
-    KnifeCord,
-    KnifeCss,
-    KnifeFalchion,
-    KnifeFlip,
-    KnifeGut,
-    KnifeGypsyJackknife,
-    KnifeKarambit,
-    KnifeKukri,
-    KnifeM9Bayonet,
-    KnifeOutdoor,
-    KnifePush,
-    KnifeSkeleton,
-    KnifeStiletto,
-    KnifeSurvivalBowie,
-    KnifeT,
-    KnifeTactical,
-    KnifeTwinblade,
-    KnifeUrsus,
-    KnifeWidowmaker,
-
     // Pistols
     Cz75A,
     Deagle,
@@ -79,6 +50,7 @@ pub enum Weapon {
     Xm1014,
 
     // Rifles
+    #[default]
     Ak47,
     Aug,
     Famas,
@@ -93,16 +65,6 @@ pub enum Weapon {
     G3SG1,
     Scar20,
     Ssg08,
-
-    // Grenades
-    Decoy,
-    Firebomb,
-    Flashbang,
-    FragGrenade,
-    HeGrenade,
-    IncGrenade,
-    Molotov,
-    SmokeGrenade,
 
     // Utility
     Taser,

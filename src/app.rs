@@ -5,13 +5,7 @@ use egui_glow::glow;
 use winit::{application::ApplicationHandler, event::WindowEvent};
 
 use crate::{
-    color::Colors,
-    config::{AimbotStatus, Config, parse_config, write_config},
-    data::Data,
-    gui::Tab,
-    message::Message,
-    mouse::DeviceStatus,
-    window_context::WindowContext,
+    color::Colors, config::{parse_config, write_config, AimbotStatus, Config}, cs2::weapon::Weapon, data::Data, gui::{AimbotTab, Tab}, message::Message, mouse::DeviceStatus, window_context::WindowContext
 };
 
 pub struct App {
@@ -31,6 +25,8 @@ pub struct App {
 
     pub config: Config,
     pub current_tab: Tab,
+    pub aimbot_tab: AimbotTab,
+    pub aimbot_weapon: Weapon,
 }
 
 impl App {
@@ -61,6 +57,8 @@ impl App {
             status: AimbotStatus::GameNotStarted,
             mouse_status: DeviceStatus::Disconnected,
             current_tab: Tab::Aimbot,
+            aimbot_tab: AimbotTab::Global,
+            aimbot_weapon: Weapon::default(),
         }
     }
 }

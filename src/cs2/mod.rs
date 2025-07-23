@@ -5,9 +5,9 @@ use rcs::Recoil;
 
 use crate::{
     aimbot::Aimbot,
-    config::Config,
+    config::{Config, WeaponConfig},
     constants::cs2,
-    cs2::{bones::Bones, offsets::Offsets, target::Target},
+    cs2::{bones::Bones, offsets::Offsets, target::Target, weapon::Weapon},
     data::{Data, PlayerData},
     key_codes::KeyCode,
     math::{angles_from_vector, vec2_clamp},
@@ -34,6 +34,7 @@ pub struct CS2 {
     target: Target,
     players: Vec<Player>,
     recoil: Recoil,
+    weapon: Weapon,
 }
 
 impl Aimbot for CS2 {
@@ -73,14 +74,14 @@ impl Aimbot for CS2 {
         self.no_flash(config);
         self.fov_changer(config);
 
-        //if config.aimbot.rcs {
+        if self.weapon_config(config).rcs {
             self.rcs(mouse);
-        //}
+        }
 
         self.find_target();
 
         if self.is_button_down(&config.aimbot.hotkey) {
-            //self.aimbot(config, mouse);
+            self.aimbot(config, mouse);
         }
     }
 
@@ -111,6 +112,15 @@ impl CS2 {
             target: Target::default(),
             players: Vec::with_capacity(64),
             recoil: Recoil::default(),
+            weapon: Weapon::default(),
+        }
+    }
+
+    fn weapon_config<'a>(&mut self, config: &'a Config) -> &'a WeaponConfig {
+        if config.aimbot.weapons.get(&self.weapon).unwrap().enabled {
+            config.aimbot.weapons.get(&self.weapon).unwrap()
+        } else {
+            &config.aimbot.global
         }
     }
 

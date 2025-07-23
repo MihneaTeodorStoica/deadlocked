@@ -1,4 +1,4 @@
-use egui::{Align, Align2, Color32, Context, DragValue, Sense, Stroke, Ui, pos2};
+use egui::{Align, Align2, Color32, Context, DragValue, Sense, Ui, pos2};
 use egui_glow::glow;
 use strum::IntoEnumIterator;
 
@@ -7,6 +7,7 @@ use crate::{
     color::{Color, Colors},
     config::{AimbotStatus, VERSION, WeaponConfig, write_config},
     constants::cs2,
+    cs2::weapon::Weapon,
     key_codes::KeyCode,
     message::Message,
     mouse::DeviceStatus,
@@ -17,6 +18,12 @@ pub enum Tab {
     Aimbot,
     Unsafe,
     Colors,
+}
+
+#[derive(PartialEq)]
+pub enum AimbotTab {
+    Global,
+    Weapon,
 }
 
 impl App {
@@ -115,6 +122,24 @@ impl App {
                 });
             ui.end_row();
 
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.aimbot_tab, AimbotTab::Global, "Global");
+                ui.selectable_value(&mut self.aimbot_tab, AimbotTab::Weapon, "Weapon");
+            });
+            ui.end_row();
+
+            if self.aimbot_tab == AimbotTab::Weapon {
+                egui::ComboBox::new("aimbot_weapon", "")
+                    .selected_text(format!("{:?}", self.aimbot_weapon))
+                    .show_ui(ui, |ui| {
+                        for weapon in Weapon::iter() {
+                            let text = format!("{:?}", weapon);
+                            ui.selectable_value(&mut self.aimbot_weapon, weapon, text);
+                        }
+                    });
+                ui.end_row();
+            };
+
             ui.label("Aim Lock");
             if ui
                 .checkbox(&mut self.weapon_config().aim_lock, "")
@@ -200,10 +225,7 @@ impl App {
     fn unsafe_grid(&mut self, ui: &mut Ui) {
         egui::Grid::new("unsafe").num_columns(4).show(ui, |ui| {
             ui.label("No Flash");
-            if ui
-                .checkbox(&mut self.config.misc.no_flash, "")
-                .changed()
-            {
+            if ui.checkbox(&mut self.config.misc.no_flash, "").changed() {
                 self.send_config();
             }
 
@@ -222,10 +244,7 @@ impl App {
             ui.end_row();
 
             ui.label("FOV Changer");
-            if ui
-                .checkbox(&mut self.config.misc.fov_changer, "")
-                .changed()
-            {
+            if ui.checkbox(&mut self.config.misc.fov_changer, "").changed() {
                 self.send_config();
             }
 
@@ -265,7 +284,6 @@ impl App {
             );
 
             let mouse_text = match &self.mouse_status {
-                DeviceStatus::WorkingKernel(name) => &format!("{} (Kernel Module)", name),
                 DeviceStatus::Working(name) => name,
                 DeviceStatus::PermissionsRequired => {
                     "mouse input only works when user is in input group"
@@ -274,12 +292,12 @@ impl App {
                 DeviceStatus::NotFound => "no mouse was found",
             };
             let color = match &self.mouse_status {
-                DeviceStatus::Working(_) | DeviceStatus::WorkingKernel(_) => Colors::SUBTEXT,
+                DeviceStatus::Working(_) => Colors::SUBTEXT,
                 _ => Colors::YELLOW,
             };
             ui.label(
                 egui::RichText::new(mouse_text)
-                    .line_height(Some(12.0))
+                    .line_height(Some(8.0))
                     .color(color),
             );
         });

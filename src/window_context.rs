@@ -20,6 +20,7 @@ impl WindowContext {
         let winit_window_builder = if overlay {
             winit::window::WindowAttributes::default()
                 .with_decorations(false)
+                // todo: monitor size
                 .with_inner_size(winit::dpi::LogicalSize::new(1920, 1080))
                 .with_position(winit::dpi::LogicalPosition::new(0, 0))
                 .with_resizable(false)
@@ -27,7 +28,9 @@ impl WindowContext {
                 .with_window_level(winit::window::WindowLevel::AlwaysOnTop)
                 .with_title("deadlocked")
         } else {
-            winit::window::WindowAttributes::default().with_title("deadlocked")
+            winit::window::WindowAttributes::default()
+                .with_inner_size(winit::dpi::LogicalSize::new(600, 400))
+                .with_title("deadlocked")
         };
 
         let config_template_builder = if overlay {

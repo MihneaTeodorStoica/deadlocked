@@ -1,7 +1,7 @@
 use glam::vec2;
 
 use crate::{
-    config::WeaponConfig,
+    config::Config,
     math::{angles_to_fov, vec2_clamp},
     mouse::Mouse,
 };
@@ -9,7 +9,9 @@ use crate::{
 use super::{CS2, bones::Bones, player::Player};
 
 impl CS2 {
-    pub fn aimbot(&mut self, config: &WeaponConfig, mouse: &mut Mouse) {
+    pub fn aimbot(&mut self, config: &Config, mouse: &mut Mouse) {
+        let config = self.weapon_config(config);
+
         if !config.enabled || self.target.player.is_none() {
             return;
         }
