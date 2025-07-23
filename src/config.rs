@@ -1,10 +1,11 @@
-use std::{fs::read_to_string, path::Path, time::Duration};
+use std::{collections::HashMap, fs::read_to_string, path::Path, time::Duration};
 
 use egui::Color32;
 use log::warn;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
 
-use crate::{color::Color, key_codes::KeyCode};
+use crate::{color::Color, cs2::weapon::Weapon, key_codes::KeyCode};
 
 const REFRESH_RATE: u64 = 100;
 pub const LOOP_DURATION: Duration = Duration::from_millis(1000 / REFRESH_RATE);
@@ -30,65 +31,79 @@ impl AimbotStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub aimbot: AimbotConfig,
-    pub misc: MiscConfig,
+    pub misc: UnsafeConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WeaponConfig {
+    pub enabled: bool,
+    pub start_bullet: i32,
+    pub aim_lock: bool,
+    pub visibility_check: bool,
+    pub flash_check: bool,
+    pub fov: f32,
+    pub smooth: f32,
+    pub multibone: bool,
+    pub rcs: bool,
+    pub rcs_smooth: f32,
+}
+
+impl Default for WeaponConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            start_bullet: 2,
+            aim_lock: false,
+            visibility_check: true,
+            flash_check: true,
+            fov: 2.5,
+            smooth: 5.0,
+            multibone: true,
+            rcs: false,
+            rcs_smooth: 1.5,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AimbotConfig {
     pub enabled: bool,
     pub hotkey: KeyCode,
-    pub start_bullet: i32,
-    pub aim_lock: bool,
-    pub visibility_check: bool,
-    pub fov: f32,
-    pub smooth: f32,
-    pub multibone: bool,
-    pub flash_check: bool,
-    pub rcs: bool,
+    pub global: WeaponConfig,
+    pub weapons: HashMap<Weapon, WeaponConfig>,
 }
 
 impl Default for AimbotConfig {
     fn default() -> Self {
+        let mut weapons =HashMap::new();
+        for weapon in Weapon::iter() {
+            weapons.insert(weapon, WeaponConfig::default());
+        }
+
         Self {
             enabled: true,
             hotkey: KeyCode::Mouse5,
-            start_bullet: 2,
-            aim_lock: false,
-            visibility_check: true,
-            fov: 2.5,
-            smooth: 5.0,
-            multibone: true,
-            flash_check: true,
-            rcs: false,
+            global: WeaponConfig::default(),
+            weapons,
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MiscConfig {
-    pub glow: bool,
-    pub friendly_glow: bool,
-    pub enemy_color: Color,
-    pub friendly_color: Color,
+pub struct UnsafeConfig {
     pub no_flash: bool,
     pub max_flash_alpha: f32,
     pub fov_changer: bool,
     pub desired_fov: u32,
-    pub esp: bool,
 }
 
-impl Default for MiscConfig {
+impl Default for UnsafeConfig {
     fn default() -> Self {
         Self {
-            glow: false,
-            friendly_glow: true,
-            enemy_color: Color::from_egui(&Color32::RED),
-            friendly_color: Color::from_egui(&Color32::GREEN),
             no_flash: false,
             max_flash_alpha: 0.5,
             fov_changer: false,
             desired_fov: 90,
-            esp: false,
         }
     }
 }

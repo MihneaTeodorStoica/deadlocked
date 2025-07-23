@@ -1,11 +1,11 @@
-use egui::{pos2, Align, Align2, Color32, Context, DragValue, Sense, Stroke, Ui};
+use egui::{Align, Align2, Color32, Context, DragValue, Sense, Stroke, Ui, pos2};
 use egui_glow::glow;
 use strum::IntoEnumIterator;
 
 use crate::{
     app::App,
     color::{Color, Colors},
-    config::{write_config, AimbotStatus, VERSION},
+    config::{AimbotStatus, VERSION, WeaponConfig, write_config},
     constants::cs2,
     key_codes::KeyCode,
     message::Message,
@@ -76,6 +76,22 @@ impl App {
         );
     }
 
+    fn weapon_config(&mut self) -> &mut WeaponConfig {
+        let data = self.data.lock().unwrap();
+        if self
+            .config
+            .aimbot
+            .weapons
+            .get(&data.weapon)
+            .unwrap()
+            .enabled
+        {
+            self.config.aimbot.weapons.get_mut(&data.weapon).unwrap()
+        } else {
+            &mut self.config.aimbot.global
+        }
+    }
+
     fn aimbot_grid(&mut self, ui: &mut Ui) {
         egui::Grid::new("aimbot").num_columns(4).show(ui, |ui| {
             ui.label("Enable Aimbot");
@@ -100,14 +116,17 @@ impl App {
             ui.end_row();
 
             ui.label("Aim Lock");
-            if ui.checkbox(&mut self.config.aimbot.aim_lock, "").changed() {
+            if ui
+                .checkbox(&mut self.weapon_config().aim_lock, "")
+                .changed()
+            {
                 self.send_config();
             }
 
             ui.label("Start Bullet");
             if ui
                 .add(
-                    DragValue::new(&mut self.config.aimbot.start_bullet)
+                    DragValue::new(&mut self.weapon_config().start_bullet)
                         .range(0..=10)
                         .speed(0.05),
                 )
@@ -119,7 +138,7 @@ impl App {
 
             ui.label("Visibility Check");
             if ui
-                .checkbox(&mut self.config.aimbot.visibility_check, "")
+                .checkbox(&mut self.weapon_config().visibility_check, "")
                 .changed()
             {
                 self.send_config();
@@ -128,7 +147,7 @@ impl App {
             ui.label("FOV");
             if ui
                 .add(
-                    DragValue::new(&mut self.config.aimbot.fov)
+                    DragValue::new(&mut self.weapon_config().fov)
                         .range(0.1..=360.0)
                         .suffix("°")
                         .speed(0.02)
@@ -141,14 +160,17 @@ impl App {
             ui.end_row();
 
             ui.label("Multibone");
-            if ui.checkbox(&mut self.config.aimbot.multibone, "").changed() {
+            if ui
+                .checkbox(&mut self.weapon_config().multibone, "")
+                .changed()
+            {
                 self.send_config();
             }
 
             ui.label("Smooth");
             if ui
                 .add(
-                    DragValue::new(&mut self.config.aimbot.smooth)
+                    DragValue::new(&mut self.weapon_config().smooth)
                         .range(1.0..=10.0)
                         .speed(0.02)
                         .max_decimals(1),
@@ -161,14 +183,14 @@ impl App {
 
             ui.label("Flash Check");
             if ui
-                .checkbox(&mut self.config.aimbot.flash_check, "")
+                .checkbox(&mut self.weapon_config().flash_check, "")
                 .changed()
             {
                 self.send_config();
             }
 
             ui.label("Enable RCS");
-            if ui.checkbox(&mut self.config.aimbot.rcs, "").changed() {
+            if ui.checkbox(&mut self.weapon_config().rcs, "").changed() {
                 self.send_config();
             }
             ui.end_row();
@@ -177,22 +199,11 @@ impl App {
 
     fn unsafe_grid(&mut self, ui: &mut Ui) {
         egui::Grid::new("unsafe").num_columns(4).show(ui, |ui| {
-            ui.label("Glow");
-            if ui.checkbox(&mut self.config.misc.glow, "").changed() {
-                self.send_config();
-            }
-
-            ui.label("Friendly Glow");
+            ui.label("No Flash");
             if ui
-                .checkbox(&mut self.config.misc.friendly_glow, "")
+                .checkbox(&mut self.config.misc.no_flash, "")
                 .changed()
             {
-                self.send_config();
-            }
-            ui.end_row();
-
-            ui.label("No Flash");
-            if ui.checkbox(&mut self.config.misc.no_flash, "").changed() {
                 self.send_config();
             }
 
@@ -211,7 +222,10 @@ impl App {
             ui.end_row();
 
             ui.label("FOV Changer");
-            if ui.checkbox(&mut self.config.misc.fov_changer, "").changed() {
+            if ui
+                .checkbox(&mut self.config.misc.fov_changer, "")
+                .changed()
+            {
                 self.send_config();
             }
 
@@ -227,35 +241,16 @@ impl App {
                 self.send_config();
             }
 
-            if ui.button("Reset").clicked() {
+            if self.config.misc.fov_changer && ui.button("Reset").clicked() {
                 self.config.misc.desired_fov = cs2::DEFAULT_FOV;
                 self.send_config();
             }
             ui.end_row();
-
-            ui.label("ESP");
-            if ui.checkbox(&mut self.config.misc.esp, "").changed() {
-                self.send_config();
-            }
         });
     }
 
     fn colors_grid(&mut self, ui: &mut Ui) {
-        egui::Grid::new("colors").num_columns(4).show(ui, |ui| {
-            ui.label("Glow Enemy Color");
-            if let Some(color) = self.color_picker(ui, &self.config.misc.enemy_color) {
-                self.config.misc.enemy_color = color;
-                self.send_config();
-            }
-            ui.end_row();
-
-            ui.label("Glow Friendly Color");
-            if let Some(color) = self.color_picker(ui, &self.config.misc.friendly_color) {
-                self.config.misc.friendly_color = color;
-                self.send_config();
-            }
-            ui.end_row();
-        });
+        egui::Grid::new("colors").num_columns(4).show(ui, |ui| {});
     }
 
     fn add_game_status(&self, ui: &mut Ui) {
@@ -311,6 +306,19 @@ impl App {
         None
     }
 
+    fn overlay(&self, ctx: &Context) {
+        let painter = ctx.debug_painter();
+        let font = egui::FontId::proportional(16.0);
+
+        painter.text(
+            pos2(50.0, 50.0),
+            Align2::CENTER_CENTER,
+            "cock",
+            font,
+            Color32::WHITE,
+        );
+    }
+
     pub fn render(&mut self) {
         use glow::HasContext as _;
 
@@ -354,12 +362,8 @@ impl App {
             .unwrap();
         self.overlay_glow.as_mut().unwrap().run(
             self.overlay_window.as_mut().unwrap().window(),
-            |egui_ctx| {
-                let painter = egui_ctx.debug_painter();
-                painter.circle(pos2(50.0, 50.0), 50.0, Color32::BLUE, Stroke::NONE);
-                egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
-                    ui.heading("Goodbye");
-                });
+            move |egui_ctx| {
+                (unsafe { &mut *self_ptr }).overlay(egui_ctx);
             },
         );
 

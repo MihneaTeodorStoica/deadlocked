@@ -1,8 +1,13 @@
+use std::collections::HashMap;
+
 use glam::{Vec2, Vec3};
 
-use crate::constants::cs2;
+use crate::{
+    constants::cs2,
+    cs2::{bones::Bones, weapon::Weapon},
+};
 
-use super::{weapon_class::WeaponClass, CS2};
+use super::{CS2, weapon_class::WeaponClass};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Player {
@@ -83,6 +88,11 @@ impl Player {
         cs2.process.read(self.pawn + cs2.offsets.pawn.life_state)
     }
 
+    pub fn name(&self, cs2: &CS2) -> String {
+        cs2.process
+            .read_string(self.controller + cs2.offsets.controller.name)
+    }
+
     pub fn weapon_name(&self, cs2: &CS2) -> String {
         // CEntityInstance
         let weapon_entity_instance: u64 = cs2.process.read(self.pawn + cs2.offsets.pawn.weapon);
@@ -104,6 +114,11 @@ impl Player {
 
     pub fn weapon_class(&self, cs2: &CS2) -> WeaponClass {
         WeaponClass::from_string(&self.weapon_name(cs2))
+    }
+
+    pub fn weapon(&self, cs2: &CS2) -> Weapon {
+        use std::str::FromStr as _;
+        Weapon::from_str(&self.weapon_name(cs2)).unwrap()
     }
 
     fn game_scene_node(&self, cs2: &CS2) -> u64 {
@@ -142,6 +157,17 @@ impl Player {
         }
 
         cs2.process.read(bone_data + (bone_index * 32))
+    }
+
+    pub fn all_bones(&self, cs2: &CS2) -> HashMap<Bones, Vec3> {
+        use strum::IntoEnumIterator as _;
+
+        let mut bones = HashMap::new();
+        for bone in Bones::iter() {
+            let pos = self.bone_position(cs2, bone.u64());
+            bones.insert(bone, pos);
+        }
+        bones
     }
 
     pub fn shots_fired(&self, cs2: &CS2) -> i32 {
@@ -202,21 +228,6 @@ impl Player {
     #[allow(unused)]
     pub fn velocity(&self, cs2: &CS2) -> Vec3 {
         cs2.process.read(self.pawn + cs2.offsets.pawn.velocity)
-    }
-
-    pub fn glow(&self, cs2: &CS2, color: u32) {
-        cs2.process.write(
-            self.pawn + cs2.offsets.pawn.glow + cs2.offsets.glow.is_glowing,
-            1u8,
-        );
-        cs2.process.write(
-            self.pawn + cs2.offsets.pawn.glow + cs2.offsets.glow.glow_type,
-            3,
-        );
-        cs2.process.write(
-            self.pawn + cs2.offsets.pawn.glow + cs2.offsets.glow.color_override,
-            color,
-        );
     }
 
     pub fn no_flash(&self, cs2: &CS2, flash_alpha: f32) {

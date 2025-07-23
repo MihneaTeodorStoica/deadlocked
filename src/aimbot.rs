@@ -1,38 +1,48 @@
-use std::{sync::mpsc, thread::sleep, time::Instant};
+use std::{
+    sync::{Arc, Mutex, mpsc},
+    thread::sleep,
+    time::Instant,
+};
 
 use log::{debug, info};
 
 use crate::{
-    config::{parse_config, AimbotStatus, LOOP_DURATION},
-    config::{Config, SLEEP_DURATION},
+    config::{AimbotStatus, Config, LOOP_DURATION, SLEEP_DURATION, parse_config},
     cs2::CS2,
+    data::Data,
     message::Message,
-    mouse::DeviceStatus,
-    mouse::Mouse,
+    mouse::{DeviceStatus, Mouse},
 };
 
 pub trait Aimbot: std::fmt::Debug {
     fn is_valid(&self) -> bool;
     fn setup(&mut self);
     fn run(&mut self, config: &Config, mouse: &mut Mouse);
+    fn data(&self, data: &mut Data);
 }
 
 pub struct AimbotManager {
     tx: mpsc::Sender<Message>,
     rx: mpsc::Receiver<Message>,
+    data: Arc<Mutex<Data>>,
     config: Config,
     mouse: Mouse,
     aimbot: CS2,
 }
 
 impl AimbotManager {
-    pub fn new(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) -> Self {
+    pub fn new(
+        tx: mpsc::Sender<Message>,
+        rx: mpsc::Receiver<Message>,
+        data: Arc<Mutex<Data>>,
+    ) -> Self {
         let mouse = Mouse::open();
 
         let config = parse_config();
         let mut aimbot = Self {
             tx,
             rx,
+            data,
             config,
             mouse,
             aimbot: CS2::new(),
@@ -77,6 +87,8 @@ impl AimbotManager {
                     previous_status = AimbotStatus::Working;
                 }
                 self.aimbot.run(&self.config, &mut self.mouse);
+                let mut data = self.data.lock().unwrap();
+                self.aimbot.data(&mut data);
             }
 
             if self.aimbot.is_valid() && mouse_valid {

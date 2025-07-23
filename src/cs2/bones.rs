@@ -1,7 +1,7 @@
 #![allow(unused)]
 use strum::EnumIter;
 
-#[derive(Debug, Clone, Copy, EnumIter)]
+#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, Hash)]
 pub enum Bones {
     Hip = 0,
     Spine1 = 1,

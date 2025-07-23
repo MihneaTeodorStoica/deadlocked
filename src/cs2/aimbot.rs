@@ -1,19 +1,16 @@
 use glam::vec2;
 
 use crate::{
-    config::Config,
+    config::WeaponConfig,
     math::{angles_to_fov, vec2_clamp},
     mouse::Mouse,
 };
 
-use super::{bones::Bones, player::Player, CS2};
+use super::{CS2, bones::Bones, player::Player};
 
 impl CS2 {
-    pub fn aimbot(&mut self, config: &Config, mouse: &mut Mouse) {
-        if !config.aimbot.enabled
-            || self.target.player.is_none()
-            || !self.is_button_down(&config.aimbot.hotkey)
-        {
+    pub fn aimbot(&mut self, config: &WeaponConfig, mouse: &mut Mouse) {
+        if !config.enabled || self.target.player.is_none() {
             return;
         }
         let target = self.target.player.as_ref().unwrap();
@@ -22,18 +19,18 @@ impl CS2 {
             return;
         };
 
-        if config.aimbot.flash_check && local_player.is_flashed(self) {
+        if config.flash_check && local_player.is_flashed(self) {
             return;
         }
 
-        if config.aimbot.visibility_check {
+        if config.visibility_check {
             let spotted_mask = target.spotted_mask(self);
             if (spotted_mask & (1 << self.target.local_pawn_index)) == 0 {
                 return;
             }
         }
 
-        let target_angle = if config.aimbot.multibone {
+        let target_angle = if config.multibone {
             self.target.angle
         } else {
             let head_position = target.bone_position(self, Bones::Head.u64());
@@ -46,7 +43,7 @@ impl CS2 {
 
         let view_angles = local_player.view_angles(self);
         if angles_to_fov(&view_angles, &target_angle)
-            > (config.aimbot.fov * self.distance_scale(self.target.distance))
+            > (config.fov * self.distance_scale(self.target.distance))
         {
             return;
         }
@@ -55,7 +52,7 @@ impl CS2 {
             return;
         }
 
-        if local_player.shots_fired(self) < config.aimbot.start_bullet {
+        if local_player.shots_fired(self) < config.start_bullet {
             return;
         }
 
@@ -71,8 +68,8 @@ impl CS2 {
             aim_angles.y / sensitivity * 50.0,
             -aim_angles.x / sensitivity * 50.0,
         );
-        let smooth_angles = if !config.aimbot.aim_lock && config.aimbot.smooth > 1.0 {
-            xy / config.aimbot.smooth
+        let smooth_angles = if !config.aim_lock && config.smooth > 0.0 {
+            xy / (config.smooth + 1.0)
         } else {
             xy
         };

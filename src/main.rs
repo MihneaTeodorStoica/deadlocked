@@ -1,8 +1,11 @@
-use std::{io::Write, sync::mpsc};
+use std::{
+    io::Write,
+    sync::{Arc, Mutex, mpsc},
+};
 
 use log::{error, info};
 
-use crate::app::App;
+use crate::{app::App, data::Data};
 
 mod aimbot;
 mod app;
@@ -10,6 +13,7 @@ mod color;
 mod config;
 mod constants;
 mod cs2;
+mod data;
 mod gui;
 mod key_codes;
 mod math;
@@ -43,15 +47,17 @@ fn main() {
 
     let (tx_aimbot, rx_gui) = mpsc::channel();
     let (tx_gui, rx_aimbot) = mpsc::channel();
+    let data = Arc::new(Mutex::new(Data::default()));
+    let data_aimbot = data.clone();
 
     std::thread::spawn(move || {
-        aimbot::AimbotManager::new(tx_aimbot, rx_aimbot).run();
+        aimbot::AimbotManager::new(tx_aimbot, rx_aimbot, data_aimbot).run();
     });
     info!("started game thread");
 
     let event_loop = winit::event_loop::EventLoop::new().unwrap();
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
-    let mut app = App::new(tx_gui, rx_gui);
+    let mut app = App::new(tx_gui, rx_gui, data);
     event_loop.run_app(&mut app).unwrap();
     info!("exiting");
 }

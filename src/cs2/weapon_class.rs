@@ -17,82 +17,57 @@ impl WeaponClass {
     pub fn from_string(name: &str) -> Self {
         match name {
             // Knives
-            "weapon_bayonet"
-            | "weapon_knife"
-            | "weapon_knife_bowie"
-            | "weapon_knife_butterfly"
-            | "weapon_knife_canis"
-            | "weapon_knife_cord"
-            | "weapon_knife_css"
-            | "weapon_knife_falchion"
-            | "weapon_knife_flip"
-            | "weapon_knife_gut"
-            | "weapon_knife_gypsy_jackknife"
-            | "weapon_knife_karambit"
-            | "weapon_knife_kukri"
-            | "weapon_knife_m9_bayonet"
-            | "weapon_knife_outdoor"
-            | "weapon_knife_push"
-            | "weapon_knife_skeleton"
-            | "weapon_knife_stiletto"
-            | "weapon_knife_survival_bowie"
-            | "weapon_knife_t"
-            | "weapon_knife_tactical"
-            | "weapon_knife_twinblade"
-            | "weapon_knife_ursus"
-            | "weapon_knife_widowmaker" => WeaponClass::Knife,
+            "bayonet"
+            | "knife"
+            | "knife_bowie"
+            | "knife_butterfly"
+            | "knife_canis"
+            | "knife_cord"
+            | "knife_css"
+            | "knife_falchion"
+            | "knife_flip"
+            | "knife_gut"
+            | "knife_gypsy_jackknife"
+            | "knife_karambit"
+            | "knife_kukri"
+            | "knife_m9_bayonet"
+            | "knife_outdoor"
+            | "knife_push"
+            | "knife_skeleton"
+            | "knife_stiletto"
+            | "knife_survival_bowie"
+            | "knife_t"
+            | "knife_tactical"
+            | "knife_twinblade"
+            | "knife_ursus"
+            | "knife_widowmaker" => WeaponClass::Knife,
 
             // Pistols
-            "weapon_cz75a"
-            | "weapon_deagle"
-            | "weapon_elite"
-            | "weapon_fiveseven"
-            | "weapon_glock"
-            | "weapon_hkp2000"
-            | "weapon_p2000"
-            | "weapon_p250"
-            | "weapon_revolver"
-            | "weapon_tec9"
-            | "weapon_usp_silencer"
-            | "weapon_usp_silencer_off" => WeaponClass::Pistol,
+            "cz75a" | "deagle" | "elite" | "fiveseven" | "glock" | "hkp2000" | "p250"
+            | "revolver" | "tec9" | "usp_silencer" | "usp_silencer_off" => WeaponClass::Pistol,
 
             // SMGs
-            "weapon_bizon" | "weapon_mac10" | "weapon_mp5sd" | "weapon_mp7" | "weapon_mp9"
-            | "weapon_p90" | "weapon_ump45" => WeaponClass::Smg,
+            "bizon" | "mac10" | "mp5sd" | "mp7" | "mp9" | "p90" | "ump45" => WeaponClass::Smg,
 
             // LMGs
-            "weapon_m249" | "weapon_negev" => WeaponClass::Heavy,
+            "m249" | "negev" => WeaponClass::Heavy,
 
             // Shotguns
-            "weapon_mag7" | "weapon_nova" | "weapon_sawedoff" | "weapon_xm1014" => {
-                WeaponClass::Shotgun
-            }
+            "mag7" | "nova" | "sawedoff" | "xm1014" => WeaponClass::Shotgun,
 
             // Rifles
-            "weapon_ak47"
-            | "weapon_aug"
-            | "weapon_famas"
-            | "weapon_galilar"
-            | "weapon_m4a1_silencer"
-            | "weapon_m4a1_silencer_off"
-            | "weapon_m4a1"
-            | "weapon_sg556" => WeaponClass::Rifle,
+            "ak47" | "aug" | "famas" | "galilar" | "m4a1_silencer" | "m4a1_silencer_off"
+            | "m4a1" | "sg556" => WeaponClass::Rifle,
 
             // Snipers
-            "weapon_awp" | "weapon_g3sg1" | "weapon_scar20" | "weapon_ssg08" => WeaponClass::Sniper,
+            "awp" | "g3sg1" | "scar20" | "ssg08" => WeaponClass::Sniper,
 
             // Grenades
-            "weapon_decoy"
-            | "weapon_firebomb"
-            | "weapon_flashbang"
-            | "weapon_frag_grenade"
-            | "weapon_hegrenade"
-            | "weapon_incgrenade"
-            | "weapon_molotov"
-            | "weapon_smokegrenade" => WeaponClass::Grenade,
+            "decoy" | "firebomb" | "flashbang" | "frag_grenade" | "hegrenade" | "incgrenade"
+            | "molotov" | "smokegrenade" => WeaponClass::Grenade,
 
             // Utility
-            "weapon_taser" => WeaponClass::Utility,
+            "taser" => WeaponClass::Utility,
 
             // Default case: unknown weapon
             _ => WeaponClass::Unknown,

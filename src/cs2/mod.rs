@@ -7,7 +7,8 @@ use crate::{
     aimbot::Aimbot,
     config::Config,
     constants::cs2,
-    cs2::{offsets::Offsets, target::Target},
+    cs2::{bones::Bones, offsets::Offsets, target::Target},
+    data::{Data, PlayerData},
     key_codes::KeyCode,
     math::{angles_from_vector, vec2_clamp},
     mouse::Mouse,
@@ -15,15 +16,14 @@ use crate::{
 };
 
 mod aimbot;
-mod bones;
-mod esp;
+pub mod bones;
 mod fov_changer;
-mod glow;
 mod noflash;
 mod offsets;
 mod player;
 mod rcs;
 mod target;
+pub mod weapon;
 mod weapon_class;
 
 #[derive(Debug)]
@@ -70,18 +70,35 @@ impl Aimbot for CS2 {
 
         self.cache_players();
 
-        self.glow(config);
         self.no_flash(config);
         self.fov_changer(config);
-        self.esp(config);
 
-        if config.aimbot.rcs {
+        //if config.aimbot.rcs {
             self.rcs(mouse);
-        }
+        //}
 
         self.find_target();
 
-        self.aimbot(config, mouse);
+        if self.is_button_down(&config.aimbot.hotkey) {
+            //self.aimbot(config, mouse);
+        }
+    }
+
+    fn data(&self, data: &mut Data) {
+        data.players.clear();
+        for player in &self.players {
+            let player_data = PlayerData {
+                health: player.health(self),
+                armor: player.armor(self),
+                team: player.team(self),
+                position: player.position(self),
+                head: player.bone_position(self, Bones::Head.u64()),
+                name: player.name(self),
+                weapon: player.weapon(self),
+                bones: player.all_bones(self),
+            };
+            data.players.push(player_data);
+        }
     }
 }
 
@@ -463,27 +480,6 @@ impl CS2 {
                     return;
                 }
                 offsets.spotted_state.mask =
-                    self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
-            }
-            "m_bGlowing" => {
-                if offsets.glow.is_glowing != 0 {
-                    return;
-                }
-                offsets.glow.is_glowing =
-                    self.process.read_vec::<u32>(client_dump, index + 0x08) as u64;
-            }
-            "m_iGlowType" => {
-                if offsets.glow.glow_type != 0 {
-                    return;
-                }
-                offsets.glow.glow_type =
-                    self.process.read_vec::<u32>(client_dump, index + 0x08) as u64;
-            }
-            "m_glowColorOverride" => {
-                if !network_enable || offsets.glow.color_override != 0 {
-                    return;
-                }
-                offsets.glow.color_override =
                     self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
             }
             "m_iFOV" => {

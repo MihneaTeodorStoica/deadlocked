@@ -1,4 +1,4 @@
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, Mutex, mpsc};
 
 use egui::{FontData, FontDefinitions, Stroke, Style};
 use egui_glow::glow;
@@ -6,7 +6,8 @@ use winit::{application::ApplicationHandler, event::WindowEvent};
 
 use crate::{
     color::Colors,
-    config::{parse_config, write_config, AimbotStatus, Config},
+    config::{AimbotStatus, Config, parse_config, write_config},
+    data::Data,
     gui::Tab,
     message::Message,
     mouse::DeviceStatus,
@@ -23,6 +24,7 @@ pub struct App {
 
     pub tx: mpsc::Sender<Message>,
     pub rx: mpsc::Receiver<Message>,
+    pub data: Arc<Mutex<Data>>,
 
     pub status: AimbotStatus,
     pub mouse_status: DeviceStatus,
@@ -32,7 +34,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) -> Self {
+    pub fn new(
+        tx: mpsc::Sender<Message>,
+        rx: mpsc::Receiver<Message>,
+        data: Arc<Mutex<Data>>,
+    ) -> Self {
         // read config
         let config = parse_config();
         // override config if invalid
@@ -49,6 +55,7 @@ impl App {
 
             tx,
             rx,
+            data,
             config,
 
             status: AimbotStatus::GameNotStarted,

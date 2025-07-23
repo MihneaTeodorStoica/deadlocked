@@ -111,19 +111,6 @@ impl SpottedStateOffsets {
 }
 
 #[derive(Debug, Default)]
-pub struct GlowOffsets {
-    pub is_glowing: u64,     // bool (m_bGlowing)
-    pub glow_type: u64,      // i32 (m_iGlowType)
-    pub color_override: u64, // Color (m_glowColorOverride)
-}
-
-impl GlowOffsets {
-    pub fn all_found(&self) -> bool {
-        self.is_glowing != 0 && self.glow_type != 0 && self.color_override != 0
-    }
-}
-
-#[derive(Debug, Default)]
 pub struct CameraServicesOffsets {
     pub fov: u64, // u32 (m_iFOV)
 }
@@ -144,7 +131,6 @@ pub struct Offsets {
     pub pawn: PawnOffsets,
     pub game_scene_node: GameSceneNodeOffsets,
     pub spotted_state: SpottedStateOffsets,
-    pub glow: GlowOffsets,
     pub camera_services: CameraServicesOffsets,
 }
 
@@ -154,7 +140,6 @@ impl Offsets {
             && self.pawn.all_found()
             && self.game_scene_node.all_found()
             && self.spotted_state.all_found()
-            && self.glow.all_found()
             && self.camera_services.all_found()
     }
 }
