@@ -2,7 +2,7 @@ use glam::Vec2;
 
 use crate::mouse::Mouse;
 
-use super::{player::Player, weapon_class::WeaponClass, CS2};
+use super::{CS2, player::Player, weapon_class::WeaponClass};
 
 #[derive(Debug, Default)]
 pub struct Recoil {

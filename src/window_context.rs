@@ -21,9 +21,9 @@ impl WindowContext {
             winit::window::WindowAttributes::default()
                 .with_decorations(false)
                 // todo: monitor size
-                .with_inner_size(winit::dpi::LogicalSize::new(1920, 1080))
+                .with_inner_size(winit::dpi::LogicalSize::new(1, 1))
                 .with_position(winit::dpi::LogicalPosition::new(0, 0))
-                .with_resizable(false)
+                .with_resizable(true)
                 .with_transparent(true)
                 .with_window_level(winit::window::WindowLevel::AlwaysOnTop)
                 .with_title("deadlocked")

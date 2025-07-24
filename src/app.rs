@@ -2,10 +2,18 @@ use std::sync::{Arc, Mutex, mpsc};
 
 use egui::{FontData, FontDefinitions, Stroke, Style};
 use egui_glow::glow;
+use log::info;
 use winit::{application::ApplicationHandler, event::WindowEvent};
 
 use crate::{
-    color::Colors, config::{parse_config, write_config, AimbotStatus, Config}, cs2::weapon::Weapon, data::Data, gui::{AimbotTab, Tab}, message::Message, mouse::DeviceStatus, window_context::WindowContext
+    color::Colors,
+    config::{AimbotStatus, Config, parse_config, write_config},
+    cs2::weapon::Weapon,
+    data::Data,
+    gui::{AimbotTab, Tab},
+    message::Message,
+    mouse::DeviceStatus,
+    window_context::WindowContext,
 };
 
 pub struct App {
@@ -68,13 +76,16 @@ impl ApplicationHandler for App {
         let (gui_window, gui_gl) = create_display(event_loop, false);
         let gui_gl = Arc::new(gui_gl);
         let mut gui_glow = egui_glow::EguiGlow::new(event_loop, gui_gl.clone(), None, None, true);
-        prep_ctx(&mut gui_glow.egui_ctx, false);
+        prep_ctx(&mut gui_glow.egui_ctx);
+        let display_scale = gui_window.window().scale_factor() as f32;
+        info!("detected display scale: {display_scale}");
+        gui_glow.egui_ctx.set_pixels_per_point(display_scale * 1.5);
 
         let (overlay_window, overlay_gl) = create_display(event_loop, true);
         let overlay_gl = Arc::new(overlay_gl);
         let mut overlay_glow =
             egui_glow::EguiGlow::new(event_loop, overlay_gl.clone(), None, None, true);
-        prep_ctx(&mut overlay_glow.egui_ctx, true);
+        prep_ctx(&mut overlay_glow.egui_ctx);
 
         self.gui_window = Some(gui_window);
         self.gui_gl = Some(gui_gl);
@@ -157,13 +168,9 @@ fn create_display(
     (glutin_window_context, gl)
 }
 
-fn prep_ctx(ctx: &mut egui::Context, overlay: bool) {
-    if !overlay {
-        ctx.set_pixels_per_point(1.2);
-    }
-
+fn prep_ctx(ctx: &mut egui::Context) {
     // add font
-    let fira_sans = include_bytes!("../resources/FiraSans.ttf");
+    let fira_sans = include_bytes!("../resources/FiraSansIcons.ttf");
     let mut font_definitions = FontDefinitions::default();
     font_definitions.font_data.insert(
         String::from("fira_sans"),

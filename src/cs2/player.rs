@@ -125,7 +125,7 @@ impl Player {
 
     pub fn weapon(&self, cs2: &CS2) -> Weapon {
         use std::str::FromStr as _;
-        Weapon::from_str(&self.weapon_name(cs2)).unwrap()
+        Weapon::from_str(&self.weapon_name(cs2)).unwrap_or_default()
     }
 
     fn game_scene_node(&self, cs2: &CS2) -> u64 {

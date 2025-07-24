@@ -1,11 +1,12 @@
 use egui::{Align, Align2, Color32, Context, DragValue, Sense, Ui, pos2};
 use egui_glow::glow;
+use log::info;
 use strum::IntoEnumIterator;
 
 use crate::{
     app::App,
-    color::{Color, Colors},
-    config::{AimbotStatus, VERSION, WeaponConfig, write_config},
+    color::Colors,
+    config::{AimbotStatus, Config, VERSION, WeaponConfig, write_config},
     constants::cs2,
     cs2::weapon::Weapon,
     key_codes::KeyCode,
@@ -16,8 +17,11 @@ use crate::{
 #[derive(PartialEq)]
 pub enum Tab {
     Aimbot,
+    Player,
+    Hud,
     Unsafe,
-    Colors,
+    Config,
+    Misc,
 }
 
 #[derive(PartialEq)]
@@ -37,15 +41,19 @@ impl App {
     }
 
     fn gui(&mut self, ctx: &Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.spacing_mut().item_spacing = egui::vec2(6.0, 4.0);
-            ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.current_tab, Tab::Aimbot, "Aimbot");
-                ui.selectable_value(&mut self.current_tab, Tab::Unsafe, "Unsafe");
-                ui.selectable_value(&mut self.current_tab, Tab::Colors, "Colors");
+        egui::SidePanel::new(egui::containers::panel::Side::Left, "sidebar")
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.selectable_value(&mut self.current_tab, Tab::Aimbot, "\u{f04fe} Aimbot");
+                ui.selectable_value(&mut self.current_tab, Tab::Player, "\u{f0013} Player");
+                ui.selectable_value(&mut self.current_tab, Tab::Hud, "\u{f0379} Hud");
+                ui.selectable_value(&mut self.current_tab, Tab::Unsafe, "\u{f0ce6} Unsafe");
+                ui.selectable_value(&mut self.current_tab, Tab::Config, "\u{f168b} Config");
+                ui.selectable_value(&mut self.current_tab, Tab::Misc, "\u{f01d8} Misc");
 
-                ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
-                    if ui.button("Report Issues").clicked() {
+                ui.with_layout(egui::Layout::bottom_up(Align::Min), |ui| {
+                    ui.label(VERSION);
+                    if ui.button("Report Issue").clicked() {
                         ctx.open_url(egui::OpenUrl {
                             url: String::from("https://github.com/avitran0/deadlocked/issues"),
                             new_tab: false,
@@ -53,37 +61,23 @@ impl App {
                     }
                 });
             });
-            ui.separator();
 
+        egui::CentralPanel::default().show(ctx, |ui| {
             self.add_game_status(ui);
             ui.separator();
 
             match self.current_tab {
-                Tab::Aimbot => self.aimbot_grid(ui),
-                Tab::Unsafe => self.unsafe_grid(ui),
-                Tab::Colors => self.colors_grid(ui),
+                Tab::Aimbot => self.aimbot_settings(ui),
+                Tab::Player => self.player_settings(ui),
+                Tab::Hud => self.hud_settings(ui),
+                Tab::Unsafe => self.unsafe_settings(ui),
+                Tab::Config => self.config_settings(ui),
+                Tab::Misc => self.misc_settings(ui),
             }
         });
-
-        let font = egui::FontId::proportional(12.0);
-        let text_size = ctx.fonts(|fonts| {
-            fonts
-                .layout_no_wrap(String::from(VERSION), font.clone(), Color32::WHITE)
-                .size()
-        });
-
-        ctx.layer_painter(egui::LayerId::background()).text(
-            Align2::RIGHT_BOTTOM
-                .align_size_within_rect(text_size, ctx.screen_rect().shrink(4.0))
-                .max,
-            Align2::RIGHT_BOTTOM,
-            VERSION,
-            font.clone(),
-            Colors::SUBTEXT,
-        );
     }
 
-    fn weapon_config(&mut self) -> &mut WeaponConfig {
+    fn held_weapon_config(&mut self) -> &mut WeaponConfig {
         let data = self.data.lock().unwrap();
         if self
             .config
@@ -99,37 +93,30 @@ impl App {
         }
     }
 
-    fn aimbot_grid(&mut self, ui: &mut Ui) {
-        egui::Grid::new("aimbot").num_columns(4).show(ui, |ui| {
-            ui.label("Enable Aimbot");
-            if ui.checkbox(&mut self.config.aimbot.enabled, "").changed() {
-                self.send_config();
-            }
+    fn weapon_config(&mut self) -> &mut WeaponConfig {
+        if self.aimbot_tab == AimbotTab::Weapon {
+            self.config
+                .aimbot
+                .weapons
+                .get_mut(&self.aimbot_weapon)
+                .unwrap()
+        } else {
+            &mut self.config.aimbot.global
+        }
+    }
 
-            ui.label("Hotkey");
-            egui::ComboBox::new("aimbot_hotkey", "")
-                .selected_text(format!("{:?}", self.config.aimbot.hotkey))
-                .show_ui(ui, |ui| {
-                    for key_code in KeyCode::iter() {
-                        let text = format!("{:?}", &key_code);
-                        if ui
-                            .selectable_value(&mut self.config.aimbot.hotkey, key_code, text)
-                            .clicked()
-                        {
-                            self.send_config();
-                        }
-                    }
-                });
-            ui.end_row();
+    fn section_title(&self, ui: &mut Ui, title: &str) {
+        ui.add_space(8.0);
+        ui.label(title);
+        ui.separator();
+    }
 
-            ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.aimbot_tab, AimbotTab::Global, "Global");
-                ui.selectable_value(&mut self.aimbot_tab, AimbotTab::Weapon, "Weapon");
-            });
-            ui.end_row();
-
+    fn aimbot_settings(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.aimbot_tab, AimbotTab::Global, "Global");
+            ui.selectable_value(&mut self.aimbot_tab, AimbotTab::Weapon, "Weapon");
             if self.aimbot_tab == AimbotTab::Weapon {
-                egui::ComboBox::new("aimbot_weapon", "")
+                egui::ComboBox::new("aimbot_weapon", "Weapon")
                     .selected_text(format!("{:?}", self.aimbot_weapon))
                     .show_ui(ui, |ui| {
                         for weapon in Weapon::iter() {
@@ -137,39 +124,57 @@ impl App {
                             ui.selectable_value(&mut self.aimbot_weapon, weapon, text);
                         }
                     });
-                ui.end_row();
-            };
-
-            ui.label("Aim Lock");
-            if ui
-                .checkbox(&mut self.weapon_config().aim_lock, "")
-                .changed()
-            {
-                self.send_config();
             }
+        });
+        ui.separator();
+        ui.columns(2, |cols| {
+            let left = &mut cols[0];
+            egui::ScrollArea::vertical()
+                .id_salt("aimbot_left")
+                .show(left, |left| {
+                    self.aimbot_left(left);
+                });
 
-            ui.label("Start Bullet");
-            if ui
-                .add(
-                    DragValue::new(&mut self.weapon_config().start_bullet)
-                        .range(0..=10)
-                        .speed(0.05),
-                )
-                .changed()
-            {
-                self.send_config();
-            }
-            ui.end_row();
+            let right = &mut cols[1];
+            egui::ScrollArea::vertical()
+                .id_salt("aimbot_right")
+                .show(right, |right| {
+                    self.aimbot_right(right);
+                });
+        });
+    }
 
-            ui.label("Visibility Check");
-            if ui
-                .checkbox(&mut self.weapon_config().visibility_check, "")
-                .changed()
-            {
-                self.send_config();
-            }
+    fn aimbot_left(&mut self, ui: &mut Ui) {
+        ui.label("Aimbot");
+        ui.separator();
 
-            ui.label("FOV");
+        egui::ComboBox::new("aimbot_hotkey", "Hotkey")
+            .selected_text(format!("{:?}", self.config.aimbot.hotkey))
+            .show_ui(ui, |ui| {
+                for key_code in KeyCode::iter() {
+                    let text = format!("{:?}", &key_code);
+                    if ui
+                        .selectable_value(&mut self.config.aimbot.hotkey, key_code, text)
+                        .clicked()
+                    {
+                        self.send_config();
+                    }
+                }
+            });
+
+        let enable_label = if self.aimbot_tab == AimbotTab::Global {
+            "Enable Aimbot"
+        } else {
+            "Enable Override"
+        };
+        if ui
+            .checkbox(&mut self.weapon_config().enabled, enable_label)
+            .changed()
+        {
+            self.send_config();
+        }
+
+        ui.horizontal(|ui| {
             if ui
                 .add(
                     DragValue::new(&mut self.weapon_config().fov)
@@ -182,21 +187,14 @@ impl App {
             {
                 self.send_config();
             }
-            ui.end_row();
+            ui.label("FOV");
+        });
 
-            ui.label("Multibone");
-            if ui
-                .checkbox(&mut self.weapon_config().multibone, "")
-                .changed()
-            {
-                self.send_config();
-            }
-
-            ui.label("Smooth");
+        ui.horizontal(|ui| {
             if ui
                 .add(
                     DragValue::new(&mut self.weapon_config().smooth)
-                        .range(1.0..=10.0)
+                        .range(0.0..=10.0)
                         .speed(0.02)
                         .max_decimals(1),
                 )
@@ -204,25 +202,143 @@ impl App {
             {
                 self.send_config();
             }
-            ui.end_row();
+            ui.label("Smooth");
+        });
 
-            ui.label("Flash Check");
+        ui.horizontal(|ui| {
             if ui
-                .checkbox(&mut self.weapon_config().flash_check, "")
+                .add(
+                    DragValue::new(&mut self.weapon_config().start_bullet)
+                        .range(0..=10)
+                        .speed(0.05),
+                )
                 .changed()
             {
                 self.send_config();
             }
+            ui.label("Start Bullet");
+        });
 
-            ui.label("Enable RCS");
-            if ui.checkbox(&mut self.weapon_config().rcs, "").changed() {
-                self.send_config();
-            }
-            ui.end_row();
+        if ui
+            .checkbox(&mut self.weapon_config().multibone, "Multibone")
+            .changed()
+        {
+            self.send_config();
+        }
+
+        if ui
+            .checkbox(&mut self.weapon_config().aim_lock, "Aim Lock")
+            .changed()
+        {
+            self.send_config();
+        }
+
+        self.section_title(ui, "Checks");
+
+        if ui
+            .checkbox(
+                &mut self.weapon_config().visibility_check,
+                "Visibility Check",
+            )
+            .changed()
+        {
+            self.send_config();
+        }
+
+        if ui
+            .checkbox(&mut self.weapon_config().flash_check, "Flash Check")
+            .changed()
+        {
+            self.send_config();
+        }
+
+        self.section_title(ui, "RCS");
+
+        if ui
+            .checkbox(&mut self.weapon_config().rcs, "Enable RCS")
+            .changed()
+        {
+            self.send_config();
+        }
+        ui.end_row();
+    }
+
+    fn aimbot_right(&mut self, ui: &mut Ui) {
+        ui.label("Triggerbot");
+        ui.separator();
+
+        let enable_label = if self.aimbot_tab == AimbotTab::Global {
+            "Enable Triggerbot"
+        } else {
+            "Enable Override"
+        };
+        if ui
+            .checkbox(&mut self.weapon_config().triggerbot.enabled, enable_label)
+            .changed()
+        {
+            self.send_config();
+        }
+
+        egui::ComboBox::new("triggerbot_hotkey", "Hotkey")
+            .selected_text(format!("{:?}", self.config.aimbot.triggerbot_hotkey))
+            .show_ui(ui, |ui| {
+                for key_code in KeyCode::iter() {
+                    let text = format!("{:?}", &key_code);
+                    if ui
+                        .selectable_value(&mut self.config.aimbot.triggerbot_hotkey, key_code, text)
+                        .clicked()
+                    {
+                        self.send_config();
+                    }
+                }
+            });
+    }
+
+    fn player_settings(&mut self, ui: &mut Ui) {
+        ui.columns(2, |cols| {
+            let left = &mut cols[0];
+            egui::ScrollArea::vertical()
+                .id_salt("player_left")
+                .show(left, |left| {
+                    self.player_left(left);
+                });
+
+            let right = &mut cols[1];
+            egui::ScrollArea::vertical()
+                .id_salt("player_right")
+                .show(right, |right| {
+                    self.player_right(right);
+                });
         });
     }
 
-    fn unsafe_grid(&mut self, ui: &mut Ui) {
+    fn player_left(&mut self, ui: &mut Ui) {}
+
+    fn player_right(&mut self, ui: &mut Ui) {}
+
+    fn hud_settings(&mut self, ui: &mut Ui) {
+        ui.columns(2, |cols| {
+            let left = &mut cols[0];
+            egui::ScrollArea::vertical()
+                .id_salt("hud_left")
+                .show(left, |left| {
+                    self.hud_left(left);
+                });
+
+            let right = &mut cols[1];
+            egui::ScrollArea::vertical()
+                .id_salt("hud_right")
+                .show(right, |right| {
+                    self.hud_right(right);
+                });
+        });
+    }
+
+    fn hud_left(&mut self, ui: &mut Ui) {}
+
+    fn hud_right(&mut self, ui: &mut Ui) {}
+
+    fn unsafe_settings(&mut self, ui: &mut Ui) {
         egui::Grid::new("unsafe").num_columns(4).show(ui, |ui| {
             ui.label("No Flash");
             if ui.checkbox(&mut self.config.misc.no_flash, "").changed() {
@@ -268,9 +384,59 @@ impl App {
         });
     }
 
-    fn colors_grid(&mut self, ui: &mut Ui) {
-        egui::Grid::new("colors").num_columns(4).show(ui, |ui| {});
+    fn unsafe_left(&mut self, ui: &mut Ui) {}
+
+    fn unsafe_right(&mut self, ui: &mut Ui) {}
+
+    fn config_settings(&mut self, ui: &mut Ui) {
+        ui.columns(2, |cols| {
+            let left = &mut cols[0];
+            egui::ScrollArea::vertical()
+                .id_salt("config_left")
+                .show(left, |left| {
+                    self.config_left(left);
+                });
+
+            let right = &mut cols[1];
+            egui::ScrollArea::vertical()
+                .id_salt("config_right")
+                .show(right, |right| {
+                    self.config_right(right);
+                });
+        });
     }
+
+    fn config_left(&mut self, ui: &mut Ui) {
+        if ui.button("Reset").clicked() {
+            self.config = Config::default();
+            self.send_config();
+            info!("loaded default config");
+        }
+    }
+
+    fn config_right(&mut self, ui: &mut Ui) {}
+
+    fn misc_settings(&mut self, ui: &mut Ui) {
+        ui.columns(2, |cols| {
+            let left = &mut cols[0];
+            egui::ScrollArea::vertical()
+                .id_salt("misc_left")
+                .show(left, |left| {
+                    self.misc_left(left);
+                });
+
+            let right = &mut cols[1];
+            egui::ScrollArea::vertical()
+                .id_salt("misc_right")
+                .show(right, |right| {
+                    self.misc_right(right);
+                });
+        });
+    }
+
+    fn misc_left(&mut self, ui: &mut Ui) {}
+
+    fn misc_right(&mut self, ui: &mut Ui) {}
 
     fn add_game_status(&self, ui: &mut Ui) {
         ui.horizontal_top(|ui| {
@@ -303,30 +469,44 @@ impl App {
         });
     }
 
-    fn color_picker(&self, ui: &mut Ui, color: &Color) -> Option<Color> {
-        let [mut r, mut g, mut b] = color.to_array();
-        let mut changed = false;
-        if ui.add(DragValue::new(&mut r).prefix("r: ")).changed()
-            || ui.add(DragValue::new(&mut g).prefix("g: ")).changed()
-            || ui.add(DragValue::new(&mut b).prefix("b: ")).changed()
-        {
-            changed = true;
+    fn color_picker(&self, ui: &mut Ui, color: &mut Color32) {
+        let [mut r, mut g, mut b, _] = color.to_array();
+        if ui.add(DragValue::new(&mut r).prefix("r: ")).changed() {
+            *color = Color32::from_rgb(r, g, b);
+        }
+        if ui.add(DragValue::new(&mut g).prefix("g: ")).changed() {
+            *color = Color32::from_rgb(r, g, b);
+        }
+        if ui.add(DragValue::new(&mut b).prefix("b: ")).changed() {
+            *color = Color32::from_rgb(r, g, b);
         };
         let (response, painter) = ui.allocate_painter(ui.spacing().interact_size, Sense::hover());
         painter.rect_filled(
             response.rect,
             ui.style().visuals.widgets.inactive.corner_radius,
-            color.egui_color(),
+            *color,
         );
-        if changed {
-            return Some(Color::rgb(r, g, b));
-        }
-        None
     }
 
     fn overlay(&self, ctx: &Context) {
         let painter = ctx.debug_painter();
         let font = egui::FontId::proportional(16.0);
+
+        let data = &self.data.lock().unwrap();
+        if let Some(overlay) = &self.overlay_window {
+            overlay
+                .window()
+                .set_outer_position(winit::dpi::LogicalPosition::new(
+                    data.window_position.x,
+                    data.window_position.y,
+                ));
+            let _ = overlay
+                .window()
+                .request_inner_size(winit::dpi::LogicalSize::new(
+                    data.window_size.x,
+                    data.window_size.y,
+                ));
+        }
 
         painter.text(
             pos2(50.0, 50.0),
@@ -334,6 +514,14 @@ impl App {
             "cock",
             font,
             Color32::WHITE,
+        );
+
+        painter.line(
+            vec![
+                pos2(0.0, 0.0),
+                pos2(data.window_size.x as f32, data.window_size.y as f32),
+            ],
+            egui::Stroke::new(2.0, Colors::TEXT),
         );
     }
 

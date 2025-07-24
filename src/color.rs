@@ -2,41 +2,6 @@
 use egui::Color32;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct Color {
-    r: u8,
-    b: u8,
-    g: u8,
-}
-
-impl Color {
-    pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
-        Self { r, g, b }
-    }
-
-    pub const fn from_egui(color: &Color32) -> Self {
-        Self {
-            r: color.r(),
-            g: color.g(),
-            b: color.b(),
-        }
-    }
-
-    pub const fn egui_color(&self) -> Color32 {
-        Color32::from_rgba_premultiplied(self.r, self.g, self.b, 255)
-    }
-
-    // used for glow color
-    pub const fn to_hex(&self) -> u32 {
-        (255 << 24) | ((self.b as u32) << 16) | ((self.g as u32) << 8) | (self.r as u32)
-    }
-
-    // used for color picker
-    pub const fn to_array(&self) -> [u8; 3] {
-        [self.r, self.g, self.b]
-    }
-}
-
 pub struct Colors;
 
 impl Colors {

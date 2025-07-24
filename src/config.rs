@@ -1,17 +1,18 @@
-use std::{collections::HashMap, fs::read_to_string, path::Path, time::Duration};
+use std::{
+    collections::HashMap, fs::read_to_string, ops::RangeInclusive, path::Path, time::Duration,
+};
 
-use egui::Color32;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
-use crate::{color::Color, cs2::weapon::Weapon, key_codes::KeyCode};
+use crate::{cs2::weapon::Weapon, key_codes::KeyCode};
 
 const REFRESH_RATE: u64 = 100;
 pub const LOOP_DURATION: Duration = Duration::from_millis(1000 / REFRESH_RATE);
 pub const SLEEP_DURATION: Duration = Duration::from_secs(1);
 pub const CONFIG_FILE_NAME: &str = "config.toml";
-pub const VERSION: &str = concat!("version: ", env!("CARGO_PKG_VERSION"));
+pub const VERSION: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum AimbotStatus {
@@ -46,6 +47,16 @@ pub struct WeaponConfig {
     pub multibone: bool,
     pub rcs: bool,
     pub rcs_smooth: f32,
+    pub triggerbot: TriggerbotConfig,
+}
+
+impl WeaponConfig {
+    pub fn enabled(enabled: bool) -> Self {
+        Self {
+            enabled,
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for WeaponConfig {
@@ -61,29 +72,55 @@ impl Default for WeaponConfig {
             multibone: true,
             rcs: false,
             rcs_smooth: 1.5,
+            triggerbot: TriggerbotConfig::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TriggerbotConfig {
+    pub enabled: bool,
+    pub delay: RangeInclusive<u64>,
+    pub visibility_check: bool,
+    pub flash_check: bool,
+    pub scope_check: bool,
+    pub velocity_check: bool,
+    pub velocity_threshold: f32,
+}
+
+impl Default for TriggerbotConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            delay: 100..=200,
+            visibility_check: true,
+            flash_check: true,
+            scope_check: true,
+            velocity_check: true,
+            velocity_threshold: 100.0,
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AimbotConfig {
-    pub enabled: bool,
     pub hotkey: KeyCode,
+    pub triggerbot_hotkey: KeyCode,
     pub global: WeaponConfig,
     pub weapons: HashMap<Weapon, WeaponConfig>,
 }
 
 impl Default for AimbotConfig {
     fn default() -> Self {
-        let mut weapons =HashMap::new();
+        let mut weapons = HashMap::new();
         for weapon in Weapon::iter() {
             weapons.insert(weapon, WeaponConfig::default());
         }
 
         Self {
-            enabled: true,
             hotkey: KeyCode::Mouse5,
-            global: WeaponConfig::default(),
+            triggerbot_hotkey: KeyCode::Mouse4,
+            global: WeaponConfig::enabled(true),
             weapons,
         }
     }
