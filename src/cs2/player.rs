@@ -29,7 +29,14 @@ impl Player {
         Self::get_pawn(cs2, controller).map(|pawn| Self { controller, pawn })
     }
 
-    fn get_client_entity(cs2: &CS2, index: u64) -> Option<u64> {
+    pub fn pawn(pawn: u64) -> Self {
+        Self {
+            controller: 0,
+            pawn,
+        }
+    }
+
+    pub fn get_client_entity(cs2: &CS2, index: u64) -> Option<u64> {
         // wtf is this doing, and how?
         let v1: u64 = cs2
             .process

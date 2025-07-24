@@ -1,14 +1,18 @@
 use std::collections::HashMap;
 
-use glam::Vec3;
+use glam::{IVec2, Mat4, Vec3};
 
 use crate::cs2::{bones::Bones, weapon::Weapon};
 
 #[derive(Debug, Default)]
 pub struct Data {
     pub in_game: bool,
+    pub is_ffa: bool,
     pub weapon: Weapon,
     pub players: Vec<PlayerData>,
+    pub view_matrix: Mat4,
+    pub window_position: IVec2,
+    pub window_size: IVec2,
 }
 
 #[derive(Debug, Default)]

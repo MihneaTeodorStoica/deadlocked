@@ -1,4 +1,4 @@
-use glam::{Vec2, Vec3};
+use glam::{IVec2, Mat4, Vec2, Vec3};
 use log::{debug, info, warn};
 use player::Player;
 use rcs::Recoil;
@@ -20,8 +20,10 @@ pub mod bones;
 mod fov_changer;
 mod noflash;
 mod offsets;
+mod planted_c4;
 mod player;
 mod rcs;
+mod smoke;
 mod target;
 pub mod weapon;
 mod weapon_class;
@@ -99,6 +101,26 @@ impl Aimbot for CS2 {
                 bones: player.all_bones(self),
             };
             data.players.push(player_data);
+        }
+
+        let local_player = Player::local_player(self);
+        if let Some(local_player) = local_player {
+            data.weapon = local_player.weapon(self);
+            data.in_game = true;
+            data.is_ffa = self.is_ffa();
+        } else {
+            data.weapon = Weapon::default();
+            data.in_game = false;
+        }
+
+        data.view_matrix = self.process.read::<Mat4>(self.offsets.direct.view_matrix);
+        let sdl_window = self.process.read::<u64>(self.offsets.direct.sdl_window);
+        if sdl_window == 0 {
+            data.window_position = IVec2::ZERO;
+            data.window_size = IVec2::ZERO;
+        } else {
+            data.window_position = self.process.read(sdl_window + 0x18);
+            data.window_size = self.process.read(sdl_window + 0x18 + 0x08);
         }
     }
 }
@@ -189,33 +211,31 @@ impl CS2 {
                 + 0x14,
         ) as u64;
 
-        let is_other_enemy = match self.process.scan_pattern(
+        let Some(view_matrix) = self.process.scan_pattern(
             &[
-                0x31, 0xc0, 0x48, 0x85, 0xf6, 0x0f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x55, 0x48, 0x89,
-                0xe5, 0x41, 0x54, 0x53,
+                0x48, 0x8D, 0x05, 0x00, 0x00, 0x00, 0x00, 0x4C, 0x8D, 0x05, 0x00, 0x00, 0x00, 0x00,
+                0x48, 0x8D, 0x0D,
             ],
-            "xxxxxxx????xxxxxxx".as_bytes(),
+            "xxx????xxx????xxx".as_bytes(),
             offsets.library.client,
-        ) {
-            Some(func) => func,
-            None => {
-                // if byte was already patched
-                let Some(is_other_enemy) = self.process.scan_pattern(
-                    &[
-                        0x31, 0xc0, 0xC3, 0x85, 0xf6, 0x0f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x55,
-                        0x48, 0x89, 0xe5, 0x41, 0x54, 0x53,
-                    ],
-                    "xxxxxxx????xxxxxxx".as_bytes(),
-                    offsets.library.client,
-                ) else {
-                    warn!("could not get IsOtherEnemy function offset");
-                    return None;
-                };
-                is_other_enemy
-            }
+        ) else {
+            warn!("could not find view matrix offset");
+            return None;
         };
-        // offset by two bytes, because the test instruction is two bytes after the beginning
-        offsets.direct.is_other_enemy = is_other_enemy + 2;
+        offsets.direct.view_matrix =
+            self.process
+                .get_relative_address(view_matrix + 0x07, 0x03, 0x07);
+
+        let Some(sdl_window) = self
+            .process
+            .get_module_export(offsets.library.sdl, "SDL_GetKeyboardFocus")
+        else {
+            warn!("could not find sdl window offset");
+            return None;
+        };
+        let sdl_window = self.process.get_relative_address(sdl_window, 0x02, 0x06);
+        let sdl_window = self.process.read(sdl_window);
+        offsets.direct.sdl_window = self.process.get_relative_address(sdl_window, 0x03, 0x07);
 
         let Some(planted_c4) = self.process.scan_pattern(
             &[0x00, 0x00, 0x00, 0x00, 0x8B, 0x10, 0x85, 0xD2, 0x0F, 0x8F],
@@ -226,6 +246,19 @@ impl CS2 {
             return None;
         };
         offsets.direct.planted_c4 = planted_c4;
+
+        let Some(global_vars) = self.process.scan_pattern(
+            &[
+                0x8D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x89, 0x35, 0x00, 0x00, 0x00, 0x00, 0x48,
+                0x89, 0x00, 0x00, 0xC3,
+            ],
+            "x?????xxx????xx??x".as_bytes(),
+            offsets.library.client,
+        ) else {
+            warn!("could not find global vars offset");
+            return None;
+        };
+        offsets.direct.global_vars = self.process.get_relative_address(global_vars, 0x09, 0x0D);
 
         let Some(ffa_address) = self
             .process
@@ -262,6 +295,7 @@ impl CS2 {
                 index,
             );
 
+            use offsets::Offset as _;
             if offsets.all_found() {
                 debug!("offsets: {:?}", offsets);
                 return Some(offsets);
@@ -321,15 +355,13 @@ impl CS2 {
                 if !network_enable || offsets.controller.name != 0 {
                     return;
                 }
-                offsets.controller.name =
-                    self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.controller.name = self.get_netvar(client_dump, index + 0x18);
             }
             "m_hPawn" => {
                 if !network_enable || offsets.controller.pawn != 0 {
                     return;
                 }
-                offsets.controller.pawn =
-                    self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.controller.pawn = self.get_netvar(client_dump, index + 0x18);
             }
             "m_iDesiredFOV" => {
                 if offsets.controller.desired_fov != 0 {
@@ -342,165 +374,228 @@ impl CS2 {
                 if !network_enable || offsets.pawn.health != 0 {
                     return;
                 }
-                offsets.pawn.health =
-                    self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.pawn.health = self.get_netvar(client_dump, index + 0x18);
             }
             "m_ArmorValue" => {
                 if !network_enable || offsets.pawn.armor != 0 {
                     return;
                 }
-                offsets.pawn.armor = self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.pawn.armor = self.get_netvar(client_dump, index + 0x18);
             }
             "m_iTeamNum" => {
                 if !network_enable || offsets.pawn.team != 0 {
                     return;
                 }
-                offsets.pawn.team = self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.pawn.team = self.get_netvar(client_dump, index + 0x18);
             }
             "m_lifeState" => {
                 if !network_enable || offsets.pawn.life_state != 0 {
                     return;
                 }
-                offsets.pawn.life_state =
-                    self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.pawn.life_state = self.get_netvar(client_dump, index + 0x18);
             }
             "m_pClippingWeapon" => {
                 if offsets.pawn.weapon != 0 {
                     return;
                 }
-                offsets.pawn.weapon =
-                    self.process.read_vec::<u32>(client_dump, index + 0x10) as u64;
+                offsets.pawn.weapon = self.get_netvar(client_dump, index + 0x10);
             }
             "m_flFOVSensitivityAdjust" => {
                 if offsets.pawn.fov_multiplier != 0 {
                     return;
                 }
-                offsets.pawn.fov_multiplier =
-                    self.process.read_vec::<u32>(client_dump, index + 0x08) as u64;
+                offsets.pawn.fov_multiplier = self.get_netvar(client_dump, index + 0x08);
             }
             "m_pGameSceneNode" => {
                 if offsets.pawn.game_scene_node != 0 {
                     return;
                 }
-                offsets.pawn.game_scene_node =
-                    self.process.read_vec::<u32>(client_dump, index + 0x10) as u64;
+                offsets.pawn.game_scene_node = self.get_netvar(client_dump, index + 0x10);
             }
             "m_vecViewOffset" => {
                 if !network_enable || offsets.pawn.eye_offset != 0 {
                     return;
                 }
-                offsets.pawn.eye_offset =
-                    self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.pawn.eye_offset = self.get_netvar(client_dump, index + 0x18);
             }
             "m_vecAbsVelocity" => {
                 if offsets.pawn.velocity != 0 {
                     return;
                 }
-                offsets.pawn.velocity =
-                    self.process.read_vec::<u32>(client_dump, index + 0x08) as u64;
+                offsets.pawn.velocity = self.get_netvar(client_dump, index + 0x08);
             }
             "m_aimPunchCache" => {
                 if !network_enable || offsets.pawn.aim_punch_cache != 0 {
                     return;
                 }
-                offsets.pawn.aim_punch_cache =
-                    self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.pawn.aim_punch_cache = self.get_netvar(client_dump, index + 0x18);
             }
             "m_iShotsFired" => {
                 if !network_enable || offsets.pawn.shots_fired != 0 {
                     return;
                 }
-                offsets.pawn.shots_fired =
-                    self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.pawn.shots_fired = self.get_netvar(client_dump, index + 0x18);
             }
             "v_angle" => {
                 if offsets.pawn.view_angles != 0 {
                     return;
                 }
-                offsets.pawn.view_angles =
-                    self.process.read_vec::<u32>(client_dump, index + 0x08) as u64;
+                offsets.pawn.view_angles = self.get_netvar(client_dump, index + 0x08);
             }
             "m_entitySpottedState" => {
                 if !network_enable || offsets.pawn.spotted_state != 0 {
                     return;
                 }
-                let offset = self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                let offset = self.get_netvar(client_dump, index + 0x18);
                 if !(10000..=14000).contains(&offset) {
                     return;
                 }
                 offsets.pawn.spotted_state = offset;
             }
-            "m_Glow" => {
-                if !network_enable || offsets.pawn.glow != 0 {
+            "m_iIDEntIndex" => {
+                if offsets.pawn.crosshair_entity != 0 {
                     return;
                 }
-                offsets.pawn.glow = self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.pawn.crosshair_entity = self.get_netvar(client_dump, index + 0x10);
+            }
+            "m_bIsScoped" => {
+                if !network_enable || offsets.pawn.is_scoped != 0 {
+                    return;
+                }
+                offsets.pawn.is_scoped = self.get_netvar(client_dump, index + 0x18);
             }
             "m_flFlashMaxAlpha" => {
                 if offsets.pawn.flash_alpha != 0 {
                     return;
                 }
-                offsets.pawn.flash_alpha =
-                    self.process.read_vec::<u32>(client_dump, index + 0x10) as u64;
+                offsets.pawn.flash_alpha = self.get_netvar(client_dump, index + 0x10);
             }
             "m_flFlashDuration" => {
                 if offsets.pawn.flash_duration != 0 {
                     return;
                 }
-                offsets.pawn.flash_duration =
-                    self.process.read_vec::<u32>(client_dump, index + 0x10) as u64;
+                offsets.pawn.flash_duration = self.get_netvar(client_dump, index + 0x10);
             }
             "m_pCameraServices" => {
                 if !network_enable || offsets.pawn.camera_services != 0 {
                     return;
                 }
-                offsets.pawn.camera_services =
-                    self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.pawn.camera_services = self.get_netvar(client_dump, index + 0x18);
+            }
+            "m_pItemServices" => {
+                if offsets.pawn.item_services != 0 {
+                    return;
+                }
+                offsets.pawn.item_services = self.get_netvar(client_dump, index + 0x08);
+            }
+            "m_pWeaponServices" => {
+                if offsets.pawn.weapon_services != 0 {
+                    return;
+                }
+                offsets.pawn.weapon_services = self.get_netvar(client_dump, index + 0x08);
             }
             "m_bDormant" => {
                 if offsets.game_scene_node.dormant != 0 {
                     return;
                 }
-                offsets.game_scene_node.dormant =
-                    self.process.read_vec::<u32>(client_dump, index + 0x08) as u64;
+                offsets.game_scene_node.dormant = self.get_netvar(client_dump, index + 0x08);
             }
             "m_vecAbsOrigin" => {
                 if !network_enable || offsets.game_scene_node.origin != 0 {
                     return;
                 }
-                offsets.game_scene_node.origin =
-                    self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.game_scene_node.origin = self.get_netvar(client_dump, index + 0x18);
             }
             "m_modelState" => {
                 if offsets.game_scene_node.model_state != 0 {
                     return;
                 }
-                offsets.game_scene_node.model_state =
-                    self.process.read_vec::<u32>(client_dump, index + 0x08) as u64;
+                offsets.game_scene_node.model_state = self.get_netvar(client_dump, index + 0x08);
+            }
+            "m_bDidSmokeEffect" => {
+                if !network_enable || offsets.smoke.did_smoke_effect != 0 {
+                    return;
+                }
+                offsets.smoke.did_smoke_effect = self.get_netvar(client_dump, index + 0x18);
+            }
+            "m_vSmokeColor" => {
+                if !network_enable || offsets.smoke.smoke_color != 0 {
+                    return;
+                }
+                offsets.smoke.smoke_color = self.get_netvar(client_dump, index + 0x18);
             }
             "m_bSpotted" => {
                 if offsets.spotted_state.spotted != 0 {
                     return;
                 }
-                offsets.spotted_state.spotted =
-                    self.process.read_vec::<u32>(client_dump, index + 0x10) as u64;
+                offsets.spotted_state.spotted = self.get_netvar(client_dump, index + 0x10);
             }
             "m_bSpottedByMask" => {
                 if !network_enable || offsets.spotted_state.mask != 0 {
                     return;
                 }
-                offsets.spotted_state.mask =
-                    self.process.read_vec::<u32>(client_dump, index + 0x18) as u64;
+                offsets.spotted_state.mask = self.get_netvar(client_dump, index + 0x18);
             }
             "m_iFOV" => {
                 if offsets.camera_services.fov != 0 {
                     return;
                 }
-                offsets.camera_services.fov =
-                    self.process.read_vec::<u32>(client_dump, index + 0x08) as u64;
+                offsets.camera_services.fov = self.get_netvar(client_dump, index + 0x08);
+            }
+            "m_bHasDefuser" => {
+                if offsets.item_services.has_defuser != 0 {
+                    return;
+                }
+                offsets.item_services.has_defuser = self.get_netvar(client_dump, index + 0x10);
+            }
+            "m_bHasHelmet" => {
+                if !network_enable || offsets.item_services.has_helmet != 0 {
+                    return;
+                }
+                offsets.item_services.has_helmet = self.get_netvar(client_dump, index + 0x18);
+            }
+            "m_hMyWeapons" => {
+                if offsets.weapon_services.weapons != 0 {
+                    return;
+                }
+                offsets.weapon_services.weapons = self.get_netvar(client_dump, index + 0x08);
+            }
+            "m_bC4Activated" => {
+                if offsets.planted_c4.is_activated != 0 {
+                    return;
+                }
+                offsets.planted_c4.is_activated = self.get_netvar(client_dump, index + 0x10);
+            }
+            "m_bBombTicking" => {
+                if offsets.planted_c4.is_ticking != 0 {
+                    return;
+                }
+                offsets.planted_c4.is_ticking = self.get_netvar(client_dump, index + 0x10);
+            }
+            "m_nBombSite" => {
+                if !network_enable || offsets.planted_c4.bomb_site != 0 {
+                    return;
+                }
+                offsets.planted_c4.bomb_site = self.get_netvar(client_dump, index + 0x18);
+            }
+            "m_flC4Blow" => {
+                if offsets.planted_c4.blow_time != 0 {
+                    return;
+                }
+                offsets.planted_c4.blow_time = self.get_netvar(client_dump, index + 0x10);
+            }
+            "m_bBeingDefused" => {
+                if !network_enable || offsets.planted_c4.being_defused != 0 {
+                    return;
+                }
+                offsets.planted_c4.being_defused = self.get_netvar(client_dump, index + 0x18);
             }
             _ => {}
         }
+    }
+
+    fn get_netvar(&self, client_dump: &[u8], address: u64) -> u64 {
+        self.process.read_vec::<u32>(client_dump, address) as u64
     }
 
     // convars

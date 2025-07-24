@@ -9,6 +9,7 @@ egui = "0.32"
 egui_glow = { version = "0.32", features = ["winit"] }
 egui-winit = "0.32"
 env_logger = { version = "0.11", default-features = false }
+epaint = { version = "0.32", features = ["serde"] }
 glam = { version = "0.30", features = ["bytemuck"] }
 glutin = "0.32"
 glutin-winit = "0.5"
