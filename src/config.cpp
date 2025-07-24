@@ -61,7 +61,7 @@ WeaponConfig WeaponConfig::from_toml(const toml::table &table) {
     cfg.start_bullet = table["start_bullet"].value_or(cfg.start_bullet);
     cfg.fov = table["fov"].value_or(cfg.fov);
     cfg.smooth = table["smooth"].value_or(cfg.smooth);
-    cfg.rcs_smooth = table["smooth_rcs"].value_or(cfg.rcs_smooth);
+    cfg.rcs_smooth = table["rcs_smooth"].value_or(cfg.rcs_smooth);
     cfg.enabled = table["enabled"].value_or(cfg.enabled);
     cfg.aim_lock = table["aim_lock"].value_or(cfg.aim_lock);
     cfg.visibility_check = table["visibility_check"].value_or(cfg.visibility_check);
