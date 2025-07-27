@@ -1,4 +1,4 @@
-use egui::{Align, Align2, Color32, Context, DragValue, Sense, Ui, pos2};
+use egui::{Align, Align2, Color32, Context, DragValue, Sense, Stroke, Ui, pos2};
 use egui_glow::glow;
 use log::info;
 use strum::IntoEnumIterator;
@@ -10,6 +10,7 @@ use crate::{
     constants::cs2,
     cs2::weapon::Weapon,
     key_codes::KeyCode,
+    math::world_to_screen,
     message::Message,
     mouse::DeviceStatus,
 };
@@ -504,6 +505,7 @@ impl App {
     }
 
     fn overlay(&self, ctx: &Context) {
+        ctx.set_pixels_per_point(1.0);
         let painter = ctx.debug_painter();
         let font = egui::FontId::proportional(16.0);
 
@@ -511,13 +513,13 @@ impl App {
         if let Some(overlay) = &self.overlay_window {
             overlay
                 .window()
-                .set_outer_position(winit::dpi::LogicalPosition::new(
+                .set_outer_position(winit::dpi::PhysicalPosition::new(
                     data.window_position.x,
                     data.window_position.y,
                 ));
             let _ = overlay
                 .window()
-                .request_inner_size(winit::dpi::LogicalSize::new(
+                .request_inner_size(winit::dpi::PhysicalSize::new(
                     data.window_size.x,
                     data.window_size.y,
                 ));
@@ -538,6 +540,15 @@ impl App {
             ],
             egui::Stroke::new(2.0, Colors::TEXT),
         );
+
+        painter.circle(pos2(2560.0,1440.0), 4.0, Colors::TEXT, Stroke::NONE);
+
+        for player in &data.players {
+            let Some(pos) = world_to_screen(&player.position, data) else {
+                continue;
+            };
+            painter.circle(pos, 4.0, Colors::TEXT, Stroke::NONE);
+        }
     }
 
     pub fn render(&mut self) {

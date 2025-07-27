@@ -20,9 +20,8 @@ impl WindowContext {
         let winit_window_builder = if overlay {
             winit::window::WindowAttributes::default()
                 .with_decorations(false)
-                // todo: monitor size
-                .with_inner_size(winit::dpi::LogicalSize::new(1, 1))
-                .with_position(winit::dpi::LogicalPosition::new(0, 0))
+                .with_inner_size(winit::dpi::PhysicalSize::new(1, 1))
+                .with_position(winit::dpi::PhysicalPosition::new(0, 0))
                 .with_resizable(true)
                 .with_transparent(true)
                 .with_window_level(winit::window::WindowLevel::AlwaysOnTop)
@@ -114,7 +113,7 @@ impl WindowContext {
 
         if overlay {
             window.set_cursor_hittest(false).unwrap();
-            window.set_outer_position(winit::dpi::LogicalPosition::new(0, 0));
+            window.set_outer_position(winit::dpi::PhysicalPosition::new(0, 0));
         }
 
         Self {

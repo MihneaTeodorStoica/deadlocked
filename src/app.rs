@@ -79,13 +79,14 @@ impl ApplicationHandler for App {
         prep_ctx(&mut gui_glow.egui_ctx);
         let display_scale = gui_window.window().scale_factor() as f32;
         info!("detected display scale: {display_scale}");
-        gui_glow.egui_ctx.set_pixels_per_point(display_scale * 1.5);
+        gui_glow.egui_ctx.set_pixels_per_point(1.2);
 
         let (overlay_window, overlay_gl) = create_display(event_loop, true);
         let overlay_gl = Arc::new(overlay_gl);
         let mut overlay_glow =
             egui_glow::EguiGlow::new(event_loop, overlay_gl.clone(), None, None, true);
         prep_ctx(&mut overlay_glow.egui_ctx);
+        overlay_glow.egui_ctx.set_pixels_per_point(1.0);
 
         self.gui_window = Some(gui_window);
         self.gui_gl = Some(gui_gl);
