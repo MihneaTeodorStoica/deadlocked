@@ -292,6 +292,21 @@ impl App {
                     }
                 }
             });
+
+        ui.horizontal(|ui| {
+            let mut start = *self.weapon_config().triggerbot.delay.start();
+            if ui
+                .add(
+                    egui::DragValue::new(&mut start)
+                        .speed(0.2)
+                        .range(0..=*self.weapon_config().triggerbot.delay.end()),
+                )
+                .changed()
+            {
+                self.send_config();
+            }
+            let mut end = *self.weapon_config().triggerbot.delay.end();
+        });
     }
 
     fn player_settings(&mut self, ui: &mut Ui) {

@@ -14,6 +14,7 @@ mod config;
 mod constants;
 mod cs2;
 mod data;
+mod drag_range;
 mod gui;
 mod key_codes;
 mod math;
