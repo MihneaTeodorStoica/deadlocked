@@ -1,4 +1,4 @@
-use egui::{Align, Align2, Color32, Context, DragValue, Sense, Stroke, Ui, pos2};
+use egui::{Align, Align2, Color32, Context, DragValue, Painter, Sense, Stroke, Ui, pos2};
 use egui_glow::glow;
 use log::info;
 use strum::IntoEnumIterator;
@@ -8,7 +8,8 @@ use crate::{
     color::Colors,
     config::{AimbotStatus, Config, VERSION, WeaponConfig, write_config},
     constants::cs2,
-    cs2::weapon::Weapon,
+    cs2::{bones::Bones, weapon::Weapon},
+    data::{Data, PlayerData},
     key_codes::KeyCode,
     math::world_to_screen,
     message::Message,
@@ -541,13 +542,32 @@ impl App {
             egui::Stroke::new(2.0, Colors::TEXT),
         );
 
-        painter.circle(pos2(2560.0,1440.0), 4.0, Colors::TEXT, Stroke::NONE);
+        painter.circle(pos2(2560.0, 1440.0), 4.0, Colors::TEXT, Stroke::NONE);
 
         for player in &data.players {
-            let Some(pos) = world_to_screen(&player.position, data) else {
+            self.player_box(&painter, player, data);
+            self.skeleton(&painter, player, data);
+        }
+    }
+
+    fn player_box(&self, painter: &Painter, player: &PlayerData, data: &Data) {
+        let midpoint = (player.position + player.head) / 2.0;
+        let height = player.head.z - player.position.z + 8.0;
+    }
+
+    fn skeleton(&self, painter: &Painter, player: &PlayerData, data: &Data) {
+        for (a, b) in &Bones::CONNECTIONS {
+            let a = player.bones.get(a).unwrap();
+            let b = player.bones.get(b).unwrap();
+
+            let Some(a) = world_to_screen(a, data) else {
                 continue;
             };
-            painter.circle(pos, 4.0, Colors::TEXT, Stroke::NONE);
+            let Some(b) = world_to_screen(b, data) else {
+                continue;
+            };
+
+            painter.line(vec![a, b], Stroke::new(2.0, Colors::TEXT));
         }
     }
 

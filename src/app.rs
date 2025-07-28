@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex, mpsc};
+use std::{
+    sync::{Arc, Mutex, mpsc},
+    time::Duration,
+};
 
 use egui::{FontData, FontDefinitions, Stroke, Style};
 use egui_glow::glow;
@@ -148,6 +151,15 @@ impl ApplicationHandler for App {
                         .request_redraw();
                 }
             }
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        if let Some(window) = &self.gui_window {
+            window.window().request_redraw();
+        }
+        if let Some(window) = &self.overlay_window {
+            window.window().request_redraw();
         }
     }
 }

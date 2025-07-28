@@ -107,7 +107,7 @@ impl WindowContext {
         gl_surface
             .set_swap_interval(
                 &gl_context,
-                glutin::surface::SwapInterval::Wait(NonZeroU32::MIN),
+                glutin::surface::SwapInterval::DontWait,
             )
             .unwrap();
 
