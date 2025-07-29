@@ -190,9 +190,9 @@ std::optional<Offsets> FindOffsets() {
     offsets.interface.input = *input_system_address;
     logging::Debug("input interface offset at: {}", hex::HexString(offsets.interface.input));
 
+    // string xref "./view.cpp"
     const std::optional<u64> view_matrix = process.ScanPattern(
-        {0x48, 0x8D, 0x05, 0x00, 0x00, 0x00, 0x00, 0x4C, 0x8D, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48,
-         0x8D, 0x0D},
+        {0x4C, 0x8D, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x4C, 0x89, 0xE6, 0x4C, 0x8D, 0x05},
         {
             true,
             true,
@@ -204,44 +204,41 @@ std::optional<Offsets> FindOffsets() {
             true,
             true,
             true,
-            false,
-            false,
-            false,
-            false,
             true,
             true,
             true,
         },
-        17, offsets.library.client);
+        13, offsets.library.client);
     if (!view_matrix) {
         logging::Error("could not find view matrix offset");
         return std::nullopt;
     }
-    offsets.direct.view_matrix = process.GetRelativeAddress(*view_matrix + 0x07, 0x03, 0x07);
+    offsets.direct.view_matrix = process.GetRelativeAddress(*view_matrix + 10, 0x03, 0x07);
     logging::Debug("view matrix offset at: {}", hex::HexString(offsets.direct.view_matrix));
 
     offsets.direct.button_state =
         process.Read<u32>(process.GetInterfaceFunction(offsets.interface.input, 19) + 0x14);
     logging::Debug("button state offset at: {}", hex::HexString(offsets.direct.button_state));
 
+    // string xref "game_alias"
     const std::optional<u64> game_types = process.ScanPattern(
-        {0x48, 0x8D, 0x05, 0x00, 0x00, 0x00, 0x00, 0xC3, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00,
-         0x00, 0x48, 0x8B, 0x07},
+        {0xe8, 0x00, 0x00, 0x00, 0x00, 0x4c, 0x8d, 0x35, 0x00, 0x00, 0x00,
+         0x00, 0x48, 0xc7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
         {
-            true, true,  true,  false, false, false, false, true, true, true,
-            true, false, false, false, false, false, true,  true, true,
+            true,  false, false, false, false, true,  true,  true, false, false, false,
+            false, true,  true,  false, false, false, false, true, true,  true,  true,
         },
-        19, offsets.library.matchmaking);
+        22, offsets.library.matchmaking);
     if (!game_types) {
         logging::Error("could not find map name offset");
         return std::nullopt;
     }
-    offsets.direct.game_types = process.GetRelativeAddress(*game_types, 0x03, 0x07);
+    offsets.direct.game_types = process.GetRelativeAddress(*game_types, 8, 12);
     logging::Debug("map name offset at: {}", hex::HexString(offsets.direct.game_types));
 
     const std::optional<u64> planted_c4 = process.ScanPattern(
-        {0x00, 0x00, 0x00, 0x00, 0x8B, 0x10, 0x85, 0xD2, 0x0F, 0x8F},
-        {false, false, false, false, true, true, true, true, true, true}, 10,
+        {0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 0x8b, 0x10, 0x85, 0xd2, 0x7e},
+        {true, true, true, false, false, false, false, true, true, true, true, true}, 12,
         offsets.library.client);
     if (!planted_c4) {
         logging::Error("could not find planted c4 offset");
