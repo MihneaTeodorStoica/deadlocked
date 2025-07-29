@@ -25,6 +25,7 @@ impl CS2 {
             return;
         }
 
+        // todo: spotted mask is always 0?
         if config.visibility_check {
             let spotted_mask = target.spotted_mask(self);
             if (spotted_mask & (1 << self.target.local_pawn_index)) == 0 {

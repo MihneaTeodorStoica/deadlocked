@@ -116,7 +116,8 @@ impl Player {
         if weapon_name_pointer == 0 {
             return String::from(cs2::WEAPON_UNKNOWN);
         }
-        cs2.process.read_string(weapon_name_pointer)
+        let name = cs2.process.read_string(weapon_name_pointer);
+        name.replace("weapon_", "")
     }
 
     pub fn weapon_class(&self, cs2: &CS2) -> WeaponClass {

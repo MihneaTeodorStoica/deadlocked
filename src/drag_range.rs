@@ -1,18 +1,18 @@
 use egui::{DragValue, Response, Ui, Widget, emath::Numeric};
 use std::ops::RangeInclusive;
 
-pub struct DragRangeU64<'a, T: Numeric> {
+pub struct DragRange<'a, T: Numeric> {
     range: &'a mut RangeInclusive<T>,
     clamp: RangeInclusive<T>,
 }
 
-impl<'a, T: Numeric> DragRangeU64<'a, T> {
+impl<'a, T: Numeric> DragRange<'a, T> {
     pub fn new(range: &'a mut RangeInclusive<T>, clamp: RangeInclusive<T>) -> Self {
         Self { range, clamp }
     }
 }
 
-impl<'a, T: Numeric> Widget for DragRangeU64<'a, T> {
+impl<'a, T: Numeric> Widget for DragRange<'a, T> {
     fn ui(self, ui: &mut Ui) -> Response {
         let mut start = *self.range.start();
         let mut end = *self.range.end();
@@ -24,8 +24,10 @@ impl<'a, T: Numeric> Widget for DragRangeU64<'a, T> {
                         .range(self.clamp.clone())
                         .suffix("  "),
                 );
-                ui.add(DragValue::new(&mut end).range(self.clamp.clone())).union(res_start)
-            }).inner;
+                ui.add(DragValue::new(&mut end).range(self.clamp.clone()))
+                    .union(res_start)
+            })
+            .inner;
 
         if start > end {
             std::mem::swap(&mut start, &mut end);

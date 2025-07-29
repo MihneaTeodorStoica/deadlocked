@@ -38,7 +38,7 @@ pub struct ConvarOffsets {
 
 #[derive(Debug, Default)]
 pub struct PlayerControllerOffsets {
-    pub name: u64,        // Pointer -> String (m_sSanitizedPlayerName)
+    pub name: u64,        // Pointer -> String (m_iszPlayerName)
     pub pawn: u64,        // Pointer -> Pawn (m_hPawn)
     pub desired_fov: u64, // u32 (m_iDesiredFOV)
 }

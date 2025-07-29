@@ -2,11 +2,12 @@ use std::{
     collections::HashMap, fs::read_to_string, ops::RangeInclusive, path::Path, time::Duration,
 };
 
+use egui::Color32;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
-use crate::{cs2::weapon::Weapon, key_codes::KeyCode};
+use crate::{color::Colors, cs2::weapon::Weapon, key_codes::KeyCode};
 
 const REFRESH_RATE: u64 = 100;
 pub const LOOP_DURATION: Duration = Duration::from_millis(1000 / REFRESH_RATE);
@@ -32,6 +33,8 @@ impl AimbotStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub aimbot: AimbotConfig,
+    pub player: PlayerConfig,
+    pub hud: HudConfig,
     pub misc: UnsafeConfig,
 }
 
@@ -122,6 +125,65 @@ impl Default for AimbotConfig {
             triggerbot_hotkey: KeyCode::Mouse4,
             global: WeaponConfig::enabled(true),
             weapons,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DrawMode {
+    None,
+    Health,
+    Color(Color32),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayerConfig {
+    pub enable: bool,
+    pub draw_box: DrawMode,
+    pub draw_skeleton: DrawMode,
+    pub health_bar: bool,
+    pub armor_bar: bool,
+    pub player_name: bool,
+    pub weapon_name: bool,
+    pub tags: bool,
+}
+
+impl Default for PlayerConfig {
+    fn default() -> Self {
+        Self {
+            enable: true,
+            draw_box: DrawMode::Color(Colors::TEXT),
+            draw_skeleton: DrawMode::Health,
+            health_bar: true,
+            armor_bar: true,
+            player_name: true,
+            weapon_name: true,
+            tags: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HudConfig {
+    pub bomb_timer: bool,
+    pub fov_circle: bool,
+    pub sniper_crosshair: bool,
+    pub text_color: Color32,
+    pub line_width: f32,
+    pub font_size: f32,
+    pub debug: bool,
+}
+
+impl Default for HudConfig {
+    fn default() -> Self {
+        Self {
+            bomb_timer: true,
+            fov_circle: false,
+            sniper_crosshair: true,
+            text_color: Colors::TEXT,
+            line_width: 2.0,
+            font_size: 16.0,
+            debug: false,
         }
     }
 }

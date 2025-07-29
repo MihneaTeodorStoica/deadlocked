@@ -1,15 +1,17 @@
 use egui::{Align, Align2, Color32, Context, DragValue, Painter, Sense, Stroke, Ui, pos2};
 use egui_glow::glow;
+use glam::vec3;
 use log::info;
 use strum::IntoEnumIterator;
 
 use crate::{
     app::App,
     color::Colors,
-    config::{AimbotStatus, Config, VERSION, WeaponConfig, write_config},
+    config::{AimbotStatus, Config, DrawMode, VERSION, WeaponConfig, write_config},
     constants::cs2,
     cs2::{bones::Bones, weapon::Weapon},
     data::{Data, PlayerData},
+    drag_range::DragRange,
     key_codes::KeyCode,
     math::world_to_screen,
     message::Message,
@@ -262,7 +264,21 @@ impl App {
         {
             self.send_config();
         }
-        ui.end_row();
+
+        ui.horizontal(|ui| {
+            if ui
+                .add(
+                    DragValue::new(&mut self.weapon_config().rcs_smooth)
+                        .range(0.0..=10.0)
+                        .speed(0.02)
+                        .max_decimals(1),
+                )
+                .changed()
+            {
+                self.send_config();
+            }
+            ui.label("RCS Smooth");
+        });
     }
 
     fn aimbot_right(&mut self, ui: &mut Ui) {
@@ -296,18 +312,16 @@ impl App {
             });
 
         ui.horizontal(|ui| {
-            let mut start = *self.weapon_config().triggerbot.delay.start();
             if ui
-                .add(
-                    egui::DragValue::new(&mut start)
-                        .speed(0.2)
-                        .range(0..=*self.weapon_config().triggerbot.delay.end()),
-                )
+                .add(DragRange::new(
+                    &mut self.weapon_config().triggerbot.delay,
+                    0..=999,
+                ))
                 .changed()
             {
                 self.send_config();
             }
-            let mut end = *self.weapon_config().triggerbot.delay.end();
+            ui.label("Delay (ms)");
         });
     }
 
@@ -351,9 +365,44 @@ impl App {
         });
     }
 
-    fn hud_left(&mut self, ui: &mut Ui) {}
+    fn hud_left(&mut self, ui: &mut Ui) {
+        ui.label("HUD");
+        ui.separator();
 
-    fn hud_right(&mut self, ui: &mut Ui) {}
+        if ui
+            .checkbox(&mut self.config.hud.bomb_timer, "Bomb Timer")
+            .changed()
+        {
+            self.send_config();
+        }
+
+        if ui
+            .checkbox(&mut self.config.hud.fov_circle, "FOV Circle")
+            .changed()
+        {
+            self.send_config();
+        }
+    }
+
+    fn hud_right(&mut self, ui: &mut Ui) {
+        ui.label("Advanced");
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            if ui
+                .add(
+                    DragValue::new(&mut self.config.hud.line_width)
+                        .range(0.1..=8.0)
+                        .speed(0.02)
+                        .max_decimals(1),
+                )
+                .changed()
+            {
+                self.send_config();
+            }
+            ui.label("Line Width");
+        });
+    }
 
     fn unsafe_settings(&mut self, ui: &mut Ui) {
         egui::Grid::new("unsafe").num_columns(4).show(ui, |ui| {
@@ -508,7 +557,6 @@ impl App {
     fn overlay(&self, ctx: &Context) {
         ctx.set_pixels_per_point(1.0);
         let painter = ctx.debug_painter();
-        let font = egui::FontId::proportional(16.0);
 
         let data = &self.data.lock().unwrap();
         if let Some(overlay) = &self.overlay_window {
@@ -526,23 +574,22 @@ impl App {
                 ));
         }
 
-        painter.text(
-            pos2(50.0, 50.0),
-            Align2::CENTER_CENTER,
-            "cock",
-            font,
-            Color32::WHITE,
-        );
-
-        painter.line(
-            vec![
-                pos2(0.0, 0.0),
-                pos2(data.window_size.x as f32, data.window_size.y as f32),
-            ],
-            egui::Stroke::new(2.0, Colors::TEXT),
-        );
-
-        painter.circle(pos2(2560.0, 1440.0), 4.0, Colors::TEXT, Stroke::NONE);
+        if self.config.hud.debug {
+            painter.line(
+                vec![
+                    pos2(0.0, 0.0),
+                    pos2(data.window_size.x as f32, data.window_size.y as f32),
+                ],
+                egui::Stroke::new(self.config.hud.line_width, Colors::TEXT),
+            );
+            painter.line(
+                vec![
+                    pos2(data.window_size.x as f32, 0.0),
+                    pos2(0.0, data.window_size.y as f32),
+                ],
+                egui::Stroke::new(self.config.hud.line_width, Colors::TEXT),
+            );
+        }
 
         for player in &data.players {
             self.player_box(&painter, player, data);
@@ -551,11 +598,122 @@ impl App {
     }
 
     fn player_box(&self, painter: &Painter, player: &PlayerData, data: &Data) {
+        let health_color = self.health_color(player.health);
+        let color = match &self.config.player.draw_box {
+            crate::config::DrawMode::None => health_color,
+            crate::config::DrawMode::Health => health_color,
+            crate::config::DrawMode::Color(color) => *color,
+        };
+        let stroke = Stroke::new(self.config.hud.line_width, color);
+        let font = egui::FontId::proportional(self.config.hud.font_size);
+
         let midpoint = (player.position + player.head) / 2.0;
-        let height = player.head.z - player.position.z + 8.0;
+        let height = player.head.z - player.position.z + 24.0;
+        let half_height = height / 2.0;
+        let top = midpoint + vec3(0.0, 0.0, half_height);
+        let bottom = midpoint - vec3(0.0, 0.0, half_height);
+
+        let Some(top) = world_to_screen(&top, data) else {
+            return;
+        };
+        let Some(bottom) = world_to_screen(&bottom, data) else {
+            return;
+        };
+        let half_height = bottom.y - top.y;
+        let width = half_height / 2.0;
+        let half_width = width / 2.0;
+        // quarter width
+        let qw = half_width - 2.0;
+        // eigth width
+        let ew = qw / 2.0;
+
+        let tl = pos2(top.x - half_width, top.y);
+        let tr = pos2(top.x + half_width, top.y);
+        let bl = pos2(bottom.x - half_width, bottom.y);
+        let br = pos2(bottom.x + half_width, bottom.y);
+
+        if self.config.player.draw_box != DrawMode::None {
+            painter.line(
+                vec![pos2(tl.x + ew, tl.y), tl, pos2(tl.x, tl.y + qw)],
+                stroke,
+            );
+            painter.line(
+                vec![pos2(tr.x - ew, tl.y), tr, pos2(tr.x, tr.y + qw)],
+                stroke,
+            );
+            painter.line(
+                vec![pos2(bl.x + ew, bl.y), bl, pos2(bl.x, bl.y - qw)],
+                stroke,
+            );
+            painter.line(
+                vec![pos2(br.x - ew, bl.y), br, pos2(br.x, br.y - qw)],
+                stroke,
+            );
+        }
+
+        // health bar
+        if self.config.player.health_bar {
+            let x = bl.x - self.config.hud.line_width * 2.0;
+            let delta = bl.y - tl.y;
+            painter.line(
+                vec![
+                    pos2(x, bl.y),
+                    pos2(x, bl.y - (delta * player.health as f32 / 100.0)),
+                ],
+                Stroke::new(self.config.hud.line_width, health_color),
+            );
+        }
+
+        if self.config.player.armor_bar && player.armor > 0 {
+            let x = bl.x
+                - self.config.hud.line_width
+                    * if self.config.player.health_bar {
+                        4.0
+                    } else {
+                        2.0
+                    };
+            let delta = bl.y - tl.y;
+            painter.line(
+                vec![
+                    pos2(x, bl.y),
+                    pos2(x, bl.y - (delta * player.armor as f32 / 100.0)),
+                ],
+                Stroke::new(self.config.hud.line_width, Color32::BLUE),
+            );
+        }
+
+        let mut offset = 0.0;
+        let font_size = self.config.hud.font_size;
+        if self.config.player.player_name {
+            painter.text(
+                pos2(tr.x+ew, tr.y + offset),
+                Align2::LEFT_TOP,
+                &player.name,
+                font.clone(),
+                self.config.hud.text_color,
+            );
+            offset += font_size;
+        }
+        if self.config.player.weapon_name {
+            painter.text(
+                pos2(tr.x+ew, tr.y + offset),
+                Align2::LEFT_TOP,
+                player.weapon.as_ref(),
+                font,
+                self.config.hud.text_color,
+            );
+            offset += font_size;
+        }
     }
 
     fn skeleton(&self, painter: &Painter, player: &PlayerData, data: &Data) {
+        let color = match &self.config.player.draw_skeleton {
+            crate::config::DrawMode::None => return,
+            crate::config::DrawMode::Health => self.health_color(player.health),
+            crate::config::DrawMode::Color(color) => *color,
+        };
+        let stroke = Stroke::new(self.config.hud.line_width, color);
+
         for (a, b) in &Bones::CONNECTIONS {
             let a = player.bones.get(a).unwrap();
             let b = player.bones.get(b).unwrap();
@@ -567,8 +725,22 @@ impl App {
                 continue;
             };
 
-            painter.line(vec![a, b], Stroke::new(2.0, Colors::TEXT));
+            painter.line(vec![a, b], stroke);
         }
+    }
+
+    fn health_color(&self, health: i32) -> Color32 {
+        let health = health.clamp(0, 100);
+
+        let (r, g) = if health <= 50 {
+            let factor = health as f32 / 50.0;
+            (255, (255.0 * factor) as u8)
+        } else {
+            let factor = 1.0 - (health - 50) as f32 / 50.0;
+            ((255.0 * factor) as u8, 255)
+        };
+
+        Color32::from_rgb(r, g, 0)
     }
 
     pub fn render(&mut self) {

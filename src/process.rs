@@ -164,7 +164,7 @@ impl Process {
 
     pub fn get_interface_offset(&self, base_address: u64, interface_name: &str) -> Option<u64> {
         let create_interface = self.get_module_export(base_address, "CreateInterface")?;
-        let export_address = self.get_relative_address(create_interface, 0x01, 0x05) + 0x10;
+        let export_address = create_interface + 0x10;
 
         let mut interface_entry =
             self.read(export_address + 0x07 + self.read::<u32>(export_address + 0x03) as u64);
@@ -249,7 +249,7 @@ impl Process {
             return None;
         }
 
-        let objects = self.read::<u64>(convar_interface + 64);
+        let objects = self.read::<u64>(convar_interface + 0x48);
         for i in 0..self.read::<u32>(convar_interface + 160) as u64 {
             let object = self.read(objects + i * 16);
             if object == 0 {

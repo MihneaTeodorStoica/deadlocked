@@ -89,7 +89,16 @@ impl Aimbot for CS2 {
 
     fn data(&self, data: &mut Data) {
         data.players.clear();
+        let Some(local_player) = Player::local_player(self) else {
+            data.weapon = Weapon::default();
+            data.in_game = false;
+            return;
+        };
+        let local_team = local_player.team(self);
         for player in &self.players {
+            if player.team(self) == local_team {
+                continue;
+            }
             let player_data = PlayerData {
                 health: player.health(self),
                 armor: player.armor(self),
@@ -103,15 +112,9 @@ impl Aimbot for CS2 {
             data.players.push(player_data);
         }
 
-        let local_player = Player::local_player(self);
-        if let Some(local_player) = local_player {
-            data.weapon = local_player.weapon(self);
-            data.in_game = true;
-            data.is_ffa = self.is_ffa();
-        } else {
-            data.weapon = Weapon::default();
-            data.in_game = false;
-        }
+        data.weapon = local_player.weapon(self);
+        data.in_game = true;
+        data.is_ffa = self.is_ffa();
 
         data.view_matrix = self.process.read::<Mat4>(self.offsets.direct.view_matrix);
         let sdl_window = self.process.read::<u64>(self.offsets.direct.sdl_window);
@@ -213,10 +216,9 @@ impl CS2 {
 
         let Some(view_matrix) = self.process.scan_pattern(
             &[
-                0x48, 0x8D, 0x05, 0x00, 0x00, 0x00, 0x00, 0x4C, 0x8D, 0x05, 0x00, 0x00, 0x00, 0x00,
-                0x48, 0x8D, 0x0D,
+                0x4C, 0x8D, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x4C, 0x89, 0xE6, 0x4C, 0x8D, 0x05,
             ],
-            "xxx????xxx????xxx".as_bytes(),
+            "xxx????xxxxxx".as_bytes(),
             offsets.library.client,
         ) else {
             warn!("could not find view matrix offset");
@@ -224,7 +226,7 @@ impl CS2 {
         };
         offsets.direct.view_matrix =
             self.process
-                .get_relative_address(view_matrix + 0x07, 0x03, 0x07);
+                .get_relative_address(view_matrix + 0x0A, 0x03, 0x07);
 
         let Some(sdl_window) = self
             .process
@@ -238,8 +240,10 @@ impl CS2 {
         offsets.direct.sdl_window = self.process.get_relative_address(sdl_window, 0x03, 0x07);
 
         let Some(planted_c4) = self.process.scan_pattern(
-            &[0x00, 0x00, 0x00, 0x00, 0x8B, 0x10, 0x85, 0xD2, 0x0F, 0x8F],
-            "????xxxxxx".as_bytes(),
+            &[
+                0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 0x8b, 0x10, 0x85, 0xd2, 0x7e,
+            ],
+            "xxx????xxxxx".as_bytes(),
             offsets.library.client,
         ) else {
             warn!("could not find planted c4 offset");
@@ -351,7 +355,7 @@ impl CS2 {
         index: u64,
     ) {
         match netvar_name.as_str() {
-            "m_sSanitizedPlayerName" => {
+            "m_iszPlayerName" => {
                 if !network_enable || offsets.controller.name != 0 {
                     return;
                 }
@@ -380,7 +384,10 @@ impl CS2 {
                 if !network_enable || offsets.pawn.armor != 0 {
                     return;
                 }
-                offsets.pawn.armor = self.get_netvar(client_dump, index + 0x18);
+                let offset = self.get_netvar(client_dump, index + 0x18);
+                if offset < 0x4000 {
+                    offsets.pawn.armor = offset;
+                }
             }
             "m_iTeamNum" => {
                 if !network_enable || offsets.pawn.team != 0 {
@@ -600,11 +607,11 @@ impl CS2 {
 
     // convars
     fn get_sensitivity(&self) -> f32 {
-        self.process.read(self.offsets.convar.sensitivity + 0x40)
+        self.process.read(self.offsets.convar.sensitivity + 0x48)
     }
 
     fn is_ffa(&self) -> bool {
-        self.process.read::<u32>(self.offsets.convar.ffa + 0x40) == 1
+        self.process.read::<u32>(self.offsets.convar.ffa + 0x48) == 1
     }
 
     // misc
