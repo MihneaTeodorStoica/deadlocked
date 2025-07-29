@@ -251,10 +251,7 @@ std::optional<u64> Process::GetInterfaceOffset(
         return std::nullopt;
     }
 
-    const u64 export_address = GetRelativeAddress(*create_interface, 0x01, 0x05) + 0x10;
-    if (!export_address) {
-        return std::nullopt;
-    }
+    const u64 export_address = *create_interface + 0x10;
 
     u64 interface_entry = Read<u64>(export_address + 0x07 + Read<u32>(export_address + 0x03));
 
@@ -353,8 +350,9 @@ std::optional<u64> Process::GetConvar(const u64 convar_offset, const std::string
         return std::nullopt;
     }
 
-    const u64 objects = Read<u64>(convar_offset + 64);
-    for (u64 i = 0; i < Read<u64>(convar_offset + 160); i++) {
+    const u64 objects = Read<u64>(convar_offset + 0x48);
+    // todo find array length
+    for (u64 i = 0; i < 8000; i++) {
         const u64 object = Read<u64>(objects + i * 16);
         if (object == 0) {
             break;
