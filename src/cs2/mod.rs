@@ -12,7 +12,8 @@ use crate::{
     key_codes::KeyCode,
     math::{angles_from_vector, vec2_clamp},
     mouse::Mouse,
-    process::Process, schema::Schema,
+    process::Process,
+    schema::Schema,
 };
 
 mod aimbot;
@@ -169,8 +170,6 @@ impl CS2 {
         offsets.library.sdl = self.process.module_base_address(cs2::SDL_LIB)?;
         offsets.library.schema = self.process.module_base_address(cs2::SCHEMA_LIB)?;
 
-        let schema = Schema::new(&self.process, offsets.library.schema);
-
         let Some(resource_offset) = self
             .process
             .get_interface_offset(offsets.library.engine, "GameResourceServiceClientV0")
@@ -284,328 +283,68 @@ impl CS2 {
         };
         offsets.convar.sensitivity = sensitivity_address;
 
-        let client_module_size = self.process.module_size(offsets.library.client);
-        let client_dump = self.process.dump_module(offsets.library.client);
+        let schema = Schema::new(&self.process, offsets.library.schema)?;
+        let client = schema.get_library(cs2::CLIENT_LIB)?;
 
-        let base = offsets.library.client;
-        for index in (0..=(client_module_size - 8)).rev().step_by(8) {
-            let Some((netvar_name, network_enable)) =
-                self.netvar_name(&client_dump, index, base, client_module_size)
-            else {
-                continue;
-            };
-            self.process_netvar(
-                &mut offsets,
-                &client_dump,
-                &netvar_name,
-                network_enable,
-                index,
-            );
+        offsets.controller.name = client.get("CBasePlayerController", "m_iszPlayerName")?;
+        offsets.controller.pawn = client.get("CBasePlayerController", "m_hPawn")?;
+        offsets.controller.desired_fov = client.get("CBasePlayerController", "m_iDesiredFOV")?;
 
-            use offsets::Offset as _;
-            if offsets.all_found() {
-                debug!("offsets: {:?}", offsets);
-                return Some(offsets);
-            }
+        offsets.pawn.health = client.get("C_BaseEntity", "m_iHealth")?;
+        offsets.pawn.armor = client.get("C_CSPlayerPawn", "m_ArmorValue")?;
+        offsets.pawn.team = client.get("C_BaseEntity", "m_iTeamNum")?;
+        offsets.pawn.life_state = client.get("C_BaseEntity", "m_lifeState")?;
+        offsets.pawn.weapon = client.get("C_CSPlayerPawnBase", "m_pClippingWeapon")?;
+        offsets.pawn.fov_multiplier = client.get("C_BasePlayerPawn", "m_flFOVSensitivityAdjust")?;
+        offsets.pawn.game_scene_node = client.get("C_BaseEntity", "m_pGameSceneNode")?;
+        offsets.pawn.eye_offset = client.get("C_BaseModelEntity", "m_vecViewOffset")?;
+        offsets.pawn.velocity = client.get("C_BaseEntity", "m_vecAbsVelocity")?;
+        offsets.pawn.aim_punch_cache = client.get("C_CSPlayerPawn", "m_aimPunchCache")?;
+        offsets.pawn.shots_fired = client.get("C_CSPlayerPawn", "m_iShotsFired")?;
+        offsets.pawn.view_angles = client.get("C_BasePlayerPawn", "v_angle")?;
+        offsets.pawn.spotted_state = client.get("C_CSPlayerPawn", "m_entitySpottedState")?;
+        offsets.pawn.crosshair_entity = client.get("C_CSPlayerPawnBase", "m_iIDEntIndex")?;
+        offsets.pawn.is_scoped = client.get("C_CSPlayerPawn", "m_bIsScoped")?;
+        offsets.pawn.flash_alpha = client.get("C_CSPlayerPawnBase", "m_flFlashMaxAlpha")?;
+        offsets.pawn.flash_duration = client.get("C_CSPlayerPawnBase", "m_flFlashDuration")?;
+
+        offsets.pawn.camera_services = client.get("C_BasePlayerPawn", "m_pCameraServices")?;
+        offsets.pawn.item_services = client.get("C_BasePlayerPawn", "m_pItemServices")?;
+        offsets.pawn.weapon_services = client.get("C_BasePlayerPawn", "m_pWeaponServices")?;
+
+        offsets.game_scene_node.dormant = client.get("CGameSceneNode", "m_bDormant")?;
+        offsets.game_scene_node.origin = client.get("CGameSceneNode", "m_vecAbsOrigin")?;
+        offsets.game_scene_node.model_state = client.get("CSkeletonInstance", "m_modelState")?;
+
+        offsets.smoke.did_smoke_effect =
+            client.get("C_SmokeGrenadeProjectile", "m_bDidSmokeEffect")?;
+        offsets.smoke.smoke_color = client.get("C_SmokeGrenadeProjectile", "m_vSmokeColor")?;
+
+        offsets.spotted_state.spotted = client.get("EntitySpottedState_t", "m_bSpotted")?;
+        offsets.spotted_state.mask = client.get("EntitySpottedState_t", "m_bSpottedByMask")?;
+
+        offsets.camera_services.fov = client.get("CCSPlayerBase_CameraServices", "m_iFOV")?;
+
+        offsets.item_services.has_defuser =
+            client.get("CCSPlayer_ItemServices", "m_bHasDefuser")?;
+        offsets.item_services.has_helmet = client.get("CCSPlayer_ItemServices", "m_bHasHelmet")?;
+
+        offsets.weapon_services.weapons = client.get("CPlayer_WeaponServices", "m_hMyWeapons")?;
+
+        offsets.planted_c4.is_activated = client.get("C_PlantedC4", "m_bC4Activated")?;
+        offsets.planted_c4.is_ticking = client.get("C_PlantedC4", "m_bBombTicking")?;
+        offsets.planted_c4.bomb_site = client.get("C_PlantedC4", "m_nBombSite")?;
+        offsets.planted_c4.blow_time = client.get("C_PlantedC4", "m_flC4Blow")?;
+        offsets.planted_c4.being_defused = client.get("C_PlantedC4", "m_bBeingDefused")?;
+
+        use offsets::Offset as _;
+        if offsets.all_found() {
+            debug!("offsets: {:?}", offsets);
+            return Some(offsets);
         }
 
         warn!("not all offsets found: {:?}", offsets);
         None
-    }
-
-    fn netvar_name(
-        &self,
-        client_dump: &[u8],
-        index: u64,
-        base: u64,
-        size: u64,
-    ) -> Option<(String, bool)> {
-        let mut ne_pointer = self.process.read_vec::<u64>(client_dump, index);
-
-        if (base..base + size).contains(&ne_pointer) {
-            ne_pointer = self.process.read_vec(client_dump, ne_pointer - base);
-        }
-
-        let network_enable = if (base..base + size).contains(&ne_pointer) {
-            let name = self.process.read_string_vec(client_dump, ne_pointer - base);
-            name.to_lowercase() == "MNetworkEnable".to_lowercase()
-        } else {
-            false
-        };
-
-        let name_pointer = self.process.read_vec::<u64>(
-            client_dump,
-            index + if network_enable { 0x08 } else { 0x00 },
-        );
-
-        if !(base..base + size).contains(&name_pointer) {
-            return None;
-        }
-
-        Some((
-            self.process
-                .read_string_vec(client_dump, name_pointer - base),
-            network_enable,
-        ))
-    }
-
-    fn process_netvar(
-        &self,
-        offsets: &mut Offsets,
-        client_dump: &[u8],
-        netvar_name: &str,
-        network_enable: bool,
-        index: u64,
-    ) {
-        match netvar_name {
-            "m_iszPlayerName" => {
-                if !network_enable || offsets.controller.name != 0 {
-                    return;
-                }
-                offsets.controller.name = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_hPawn" => {
-                if !network_enable || offsets.controller.pawn != 0 {
-                    return;
-                }
-                offsets.controller.pawn = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_iDesiredFOV" => {
-                if offsets.controller.desired_fov != 0 {
-                    return;
-                }
-                offsets.controller.desired_fov =
-                    self.process.read_vec::<u32>(client_dump, index + 0x8) as u64;
-            }
-            "m_iHealth" => {
-                if !network_enable || offsets.pawn.health != 0 {
-                    return;
-                }
-                offsets.pawn.health = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_ArmorValue" => {
-                if !network_enable || offsets.pawn.armor != 0 {
-                    return;
-                }
-                let offset = self.get_netvar(client_dump, index + 0x18);
-                if offset < 0x4000 {
-                    offsets.pawn.armor = offset;
-                }
-            }
-            "m_iTeamNum" => {
-                if !network_enable || offsets.pawn.team != 0 {
-                    return;
-                }
-                offsets.pawn.team = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_lifeState" => {
-                if !network_enable || offsets.pawn.life_state != 0 {
-                    return;
-                }
-                offsets.pawn.life_state = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_pClippingWeapon" => {
-                if offsets.pawn.weapon != 0 {
-                    return;
-                }
-                offsets.pawn.weapon = self.get_netvar(client_dump, index + 0x10);
-            }
-            "m_flFOVSensitivityAdjust" => {
-                if offsets.pawn.fov_multiplier != 0 {
-                    return;
-                }
-                offsets.pawn.fov_multiplier = self.get_netvar(client_dump, index + 0x08);
-            }
-            "m_pGameSceneNode" => {
-                if offsets.pawn.game_scene_node != 0 {
-                    return;
-                }
-                offsets.pawn.game_scene_node = self.get_netvar(client_dump, index + 0x10);
-            }
-            "m_vecViewOffset" => {
-                if !network_enable || offsets.pawn.eye_offset != 0 {
-                    return;
-                }
-                offsets.pawn.eye_offset = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_vecAbsVelocity" => {
-                if offsets.pawn.velocity != 0 {
-                    return;
-                }
-                offsets.pawn.velocity = self.get_netvar(client_dump, index + 0x08);
-            }
-            "m_aimPunchCache" => {
-                if !network_enable || offsets.pawn.aim_punch_cache != 0 {
-                    return;
-                }
-                offsets.pawn.aim_punch_cache = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_iShotsFired" => {
-                if !network_enable || offsets.pawn.shots_fired != 0 {
-                    return;
-                }
-                offsets.pawn.shots_fired = self.get_netvar(client_dump, index + 0x18);
-            }
-            "v_angle" => {
-                if offsets.pawn.view_angles != 0 {
-                    return;
-                }
-                offsets.pawn.view_angles = self.get_netvar(client_dump, index + 0x08);
-            }
-            "m_entitySpottedState" => {
-                if !network_enable || offsets.pawn.spotted_state != 0 {
-                    return;
-                }
-                let offset = self.get_netvar(client_dump, index + 0x18);
-                if !(10000..=14000).contains(&offset) {
-                    return;
-                }
-                offsets.pawn.spotted_state = offset;
-            }
-            "m_iIDEntIndex" => {
-                if offsets.pawn.crosshair_entity != 0 {
-                    return;
-                }
-                offsets.pawn.crosshair_entity = self.get_netvar(client_dump, index + 0x10);
-            }
-            "m_bIsScoped" => {
-                if !network_enable || offsets.pawn.is_scoped != 0 {
-                    return;
-                }
-                offsets.pawn.is_scoped = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_flFlashMaxAlpha" => {
-                if offsets.pawn.flash_alpha != 0 {
-                    return;
-                }
-                offsets.pawn.flash_alpha = self.get_netvar(client_dump, index + 0x10);
-            }
-            "m_flFlashDuration" => {
-                if offsets.pawn.flash_duration != 0 {
-                    return;
-                }
-                offsets.pawn.flash_duration = self.get_netvar(client_dump, index + 0x10);
-            }
-            "m_pCameraServices" => {
-                if !network_enable || offsets.pawn.camera_services != 0 {
-                    return;
-                }
-                offsets.pawn.camera_services = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_pItemServices" => {
-                if offsets.pawn.item_services != 0 {
-                    return;
-                }
-                offsets.pawn.item_services = self.get_netvar(client_dump, index + 0x08);
-            }
-            "m_pWeaponServices" => {
-                if offsets.pawn.weapon_services != 0 {
-                    return;
-                }
-                offsets.pawn.weapon_services = self.get_netvar(client_dump, index + 0x08);
-            }
-            "m_bDormant" => {
-                if offsets.game_scene_node.dormant != 0 {
-                    return;
-                }
-                offsets.game_scene_node.dormant = self.get_netvar(client_dump, index + 0x08);
-            }
-            "m_vecAbsOrigin" => {
-                if !network_enable || offsets.game_scene_node.origin != 0 {
-                    return;
-                }
-                offsets.game_scene_node.origin = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_modelState" => {
-                if offsets.game_scene_node.model_state != 0 {
-                    return;
-                }
-                offsets.game_scene_node.model_state = self.get_netvar(client_dump, index + 0x08);
-            }
-            "m_bDidSmokeEffect" => {
-                if !network_enable || offsets.smoke.did_smoke_effect != 0 {
-                    return;
-                }
-                offsets.smoke.did_smoke_effect = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_vSmokeColor" => {
-                if !network_enable || offsets.smoke.smoke_color != 0 {
-                    return;
-                }
-                offsets.smoke.smoke_color = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_bSpotted" => {
-                if offsets.spotted_state.spotted != 0 {
-                    return;
-                }
-                offsets.spotted_state.spotted = self.get_netvar(client_dump, index + 0x10);
-            }
-            "m_bSpottedByMask" => {
-                if !network_enable || offsets.spotted_state.mask != 0 {
-                    return;
-                }
-                offsets.spotted_state.mask = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_iFOV" => {
-                if offsets.camera_services.fov != 0 {
-                    return;
-                }
-                offsets.camera_services.fov = self.get_netvar(client_dump, index + 0x08);
-            }
-            "m_bHasDefuser" => {
-                if offsets.item_services.has_defuser != 0 {
-                    return;
-                }
-                offsets.item_services.has_defuser = self.get_netvar(client_dump, index + 0x10);
-            }
-            "m_bHasHelmet" => {
-                if !network_enable || offsets.item_services.has_helmet != 0 {
-                    return;
-                }
-                offsets.item_services.has_helmet = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_hMyWeapons" => {
-                if offsets.weapon_services.weapons != 0 {
-                    return;
-                }
-                offsets.weapon_services.weapons = self.get_netvar(client_dump, index + 0x08);
-            }
-            "m_bC4Activated" => {
-                if offsets.planted_c4.is_activated != 0 {
-                    return;
-                }
-                offsets.planted_c4.is_activated = self.get_netvar(client_dump, index + 0x10);
-            }
-            "m_bBombTicking" => {
-                if offsets.planted_c4.is_ticking != 0 {
-                    return;
-                }
-                offsets.planted_c4.is_ticking = self.get_netvar(client_dump, index + 0x10);
-            }
-            "m_nBombSite" => {
-                if !network_enable || offsets.planted_c4.bomb_site != 0 {
-                    return;
-                }
-                offsets.planted_c4.bomb_site = self.get_netvar(client_dump, index + 0x18);
-            }
-            "m_flC4Blow" => {
-                if offsets.planted_c4.blow_time != 0 {
-                    return;
-                }
-                offsets.planted_c4.blow_time = self.get_netvar(client_dump, index + 0x10);
-            }
-            "m_bBeingDefused" => {
-                if !network_enable || offsets.planted_c4.being_defused != 0 {
-                    return;
-                }
-                offsets.planted_c4.being_defused = self.get_netvar(client_dump, index + 0x18);
-            }
-            _ => {}
-        }
-    }
-
-    fn get_netvar(&self, client_dump: &[u8], address: u64) -> u64 {
-        self.process.read_vec::<u32>(client_dump, address) as u64
     }
 
     // convars
