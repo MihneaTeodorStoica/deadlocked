@@ -294,7 +294,7 @@ impl CS2 {
             self.process_netvar(
                 &mut offsets,
                 &client_dump,
-                netvar_name,
+                &netvar_name,
                 network_enable,
                 index,
             );
@@ -350,11 +350,11 @@ impl CS2 {
         &self,
         offsets: &mut Offsets,
         client_dump: &[u8],
-        netvar_name: String,
+        netvar_name: &str,
         network_enable: bool,
         index: u64,
     ) {
-        match netvar_name.as_str() {
+        match netvar_name {
             "m_iszPlayerName" => {
                 if !network_enable || offsets.controller.name != 0 {
                     return;
