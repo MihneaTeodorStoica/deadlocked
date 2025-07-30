@@ -341,3 +341,60 @@ impl Process {
         }
     }
 }
+
+pub struct Module {
+    base_address: u64,
+    data: Vec<u8>,
+}
+
+impl Module {
+    pub fn new(process: &Process, base_address: u64) -> Self {
+        Self {
+            base_address,
+            data: process.dump_module(base_address),
+        }
+    }
+
+    pub fn base(&self) -> u64 {
+        self.base_address
+    }
+
+    pub fn size(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+
+    pub fn read<T: AnyBitPattern + Default>(&self, address: u64) -> T {
+        let offset = if address > self.size() as u64 {
+            address - self.base_address
+        } else {
+            address
+        };
+        if offset as usize + std::mem::size_of::<T>() > self.data.len() {
+            return T::default();
+        }
+        let slice = &self.data[offset as usize..offset as usize + std::mem::size_of::<T>()];
+        bytemuck::try_from_bytes(slice).copied().unwrap_or_default()
+    }
+
+    pub fn read_string(&self, address: u64) -> String {
+        let mut string = String::with_capacity(8);
+        let mut i = if address > self.size() as u64 {
+            address - self.base_address
+        } else {
+            address
+        };
+        while i < self.data.len() as u64 {
+            let c = self.read::<u8>(i);
+            if c == 0 {
+                break;
+            }
+            string.push(c as char);
+            i += 1;
+        }
+        string
+    }
+}

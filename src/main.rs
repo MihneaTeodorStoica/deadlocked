@@ -21,6 +21,7 @@ mod math;
 mod message;
 mod mouse;
 mod process;
+mod schema;
 mod window_context;
 
 #[cfg(not(target_os = "linux"))]

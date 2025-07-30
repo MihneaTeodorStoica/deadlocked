@@ -12,7 +12,7 @@ use crate::{
     key_codes::KeyCode,
     math::{angles_from_vector, vec2_clamp},
     mouse::Mouse,
-    process::Process,
+    process::Process, schema::Schema,
 };
 
 mod aimbot;
@@ -167,6 +167,9 @@ impl CS2 {
         offsets.library.tier0 = self.process.module_base_address(cs2::TIER0_LIB)?;
         offsets.library.input = self.process.module_base_address(cs2::INPUT_LIB)?;
         offsets.library.sdl = self.process.module_base_address(cs2::SDL_LIB)?;
+        offsets.library.schema = self.process.module_base_address(cs2::SCHEMA_LIB)?;
+
+        let schema = Schema::new(&self.process, offsets.library.schema);
 
         let Some(resource_offset) = self
             .process
