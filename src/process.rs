@@ -125,6 +125,10 @@ impl Process {
         self.read_bytes(address, module_size)
     }
 
+    pub fn scan(&self, pattern: &str, base_address: u64) -> Option<u64> {
+        None
+    }
+
     pub fn scan_pattern(&self, pattern: &[u8], mask: &[u8], base_address: u64) -> Option<u64> {
         assert!(pattern.len() == mask.len(), "pattern length mismatch");
 

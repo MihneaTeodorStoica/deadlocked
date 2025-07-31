@@ -82,7 +82,6 @@ impl Player {
         health
     }
 
-    #[allow(unused)]
     pub fn armor(&self, cs2: &CS2) -> i32 {
         cs2.process.read(self.pawn + cs2.offsets.pawn.armor)
     }
@@ -125,8 +124,50 @@ impl Player {
     }
 
     pub fn weapon(&self, cs2: &CS2) -> Weapon {
-        use std::str::FromStr as _;
-        Weapon::from_str(&self.weapon_name(cs2)).unwrap_or_default()
+        Weapon::from_str(&self.weapon_name(cs2))
+    }
+
+    pub fn all_weapons(&self, cs2: &CS2) -> Vec<Weapon> {
+        let mut weapons = vec![];
+        let weapon_services: u64 = cs2
+            .process
+            .read(self.pawn + cs2.offsets.pawn.weapon_services);
+        if weapon_services == 0 {
+            return weapons;
+        }
+
+        let length: i32 = cs2
+            .process
+            .read(weapon_services + cs2.offsets.weapon_services.weapons);
+        let weapon_list: u64 = cs2
+            .process
+            .read(weapon_services + cs2.offsets.weapon_services.weapons + 0x08);
+
+        for i in 0..length as u64 {
+            let weapon_index = cs2.process.read::<i32>(weapon_list + 0x04 * i) as u64 & 0xFFF;
+            // CEntityInstance
+            let Some(weapon_entity_instance) = Self::get_client_entity(cs2, weapon_index) else {
+                continue;
+            };
+            if weapon_entity_instance == 0 {
+                continue;
+            }
+            // CEntityIdentity, 0x10 = m_pEntity
+            let weapon_entity_identity: u64 = cs2.process.read(weapon_entity_instance + 0x10);
+            if weapon_entity_identity == 0 {
+                continue;
+            }
+            // 0x20 = m_designerName (pointer -> string)
+            let weapon_name_pointer = cs2.process.read(weapon_entity_identity + 0x20);
+            if weapon_name_pointer == 0 {
+                continue;
+            }
+            let name = cs2.process.read_string(weapon_name_pointer);
+            let name = name.replace("weapon_", "");
+            weapons.push(Weapon::from_str(name.as_str()))
+        }
+
+        weapons
     }
 
     fn game_scene_node(&self, cs2: &CS2) -> u64 {
@@ -231,6 +272,33 @@ impl Player {
             .read(self.pawn + cs2.offsets.pawn.aim_punch_cache + 0x08);
 
         cs2.process.read(data_address + (length - 1) * 12)
+    }
+
+    pub fn has_defuser(&self, cs2: &CS2) -> bool {
+        let item_services: u64 = cs2.process.read(self.pawn + cs2.offsets.pawn.item_services);
+        if item_services == 0 {
+            return false;
+        }
+
+        cs2.process
+            .read::<u8>(item_services + cs2.offsets.item_services.has_defuser)
+            != 0
+    }
+
+    pub fn has_helmet(&self, cs2: &CS2) -> bool {
+        let item_services: u64 = cs2.process.read(self.pawn + cs2.offsets.pawn.item_services);
+        if item_services == 0 {
+            return false;
+        }
+
+        cs2.process
+            .read::<u8>(item_services + cs2.offsets.item_services.has_helmet)
+            != 0
+    }
+
+    pub fn has_bomb(&self, cs2: &CS2) -> bool {
+        let weapons = self.all_weapons(cs2);
+        weapons.contains(&Weapon::C4)
     }
 
     #[allow(unused)]

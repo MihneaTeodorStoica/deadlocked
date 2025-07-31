@@ -1,4 +1,6 @@
-use egui::{Align, Align2, Color32, Context, DragValue, Painter, Sense, Stroke, Ui, pos2};
+use egui::{
+    Align, Align2, Color32, Context, DragValue, Painter, Response, Sense, Stroke, Ui, pos2,
+};
 use egui_glow::glow;
 use glam::vec3;
 use log::info;
@@ -255,30 +257,6 @@ impl App {
         {
             self.send_config();
         }
-
-        self.section_title(ui, "RCS");
-
-        if ui
-            .checkbox(&mut self.weapon_config().rcs, "Enable RCS")
-            .changed()
-        {
-            self.send_config();
-        }
-
-        ui.horizontal(|ui| {
-            if ui
-                .add(
-                    DragValue::new(&mut self.weapon_config().rcs_smooth)
-                        .range(0.0..=10.0)
-                        .speed(0.02)
-                        .max_decimals(1),
-                )
-                .changed()
-            {
-                self.send_config();
-            }
-            ui.label("RCS Smooth");
-        });
     }
 
     fn aimbot_right(&mut self, ui: &mut Ui) {
@@ -323,29 +301,76 @@ impl App {
             }
             ui.label("Delay (ms)");
         });
-    }
 
-    fn player_settings(&mut self, ui: &mut Ui) {
-        ui.columns(2, |cols| {
-            let left = &mut cols[0];
-            egui::ScrollArea::vertical()
-                .id_salt("player_left")
-                .show(left, |left| {
-                    self.player_left(left);
-                });
+        self.section_title(ui, "RCS");
 
-            let right = &mut cols[1];
-            egui::ScrollArea::vertical()
-                .id_salt("player_right")
-                .show(right, |right| {
-                    self.player_right(right);
-                });
+        if ui
+            .checkbox(&mut self.weapon_config().rcs, "Enable RCS")
+            .changed()
+        {
+            self.send_config();
+        }
+
+        ui.horizontal(|ui| {
+            if ui
+                .add(
+                    DragValue::new(&mut self.weapon_config().rcs_smooth)
+                        .range(0.0..=10.0)
+                        .speed(0.02)
+                        .max_decimals(1),
+                )
+                .changed()
+            {
+                self.send_config();
+            }
+            ui.label("RCS Smooth");
         });
     }
 
-    fn player_left(&mut self, ui: &mut Ui) {}
+    fn player_settings(&mut self, ui: &mut Ui) {
+        egui::ScrollArea::vertical()
+            .id_salt("player")
+            .show(ui, |ui| {
+                ui.label("Player");
+                ui.separator();
 
-    fn player_right(&mut self, ui: &mut Ui) {}
+                egui::ComboBox::new("draw_box", "Box")
+                    .selected_text(format!("{:?}", self.config.player.draw_box))
+                    .show_ui(ui, |ui| {
+                        for mode in DrawMode::iter() {
+                            let text = format!("{:?}", &mode);
+                            ui.selectable_value(&mut self.config.player.draw_box, mode, text);
+                        }
+                    });
+
+                egui::ComboBox::new("draw_skeleton", "Skeleton")
+                    .selected_text(format!("{:?}", self.config.player.draw_skeleton))
+                    .show_ui(ui, |ui| {
+                        for mode in DrawMode::iter() {
+                            let text = format!("{:?}", &mode);
+                            ui.selectable_value(&mut self.config.player.draw_skeleton, mode, text);
+                        }
+                    });
+
+                ui.checkbox(&mut self.config.player.health_bar, "Health Bar");
+                ui.checkbox(&mut self.config.player.armor_bar, "Armor Bar");
+                ui.checkbox(&mut self.config.player.player_name, "Player Name");
+                ui.checkbox(&mut self.config.player.weapon_name, "Weapon Name");
+                ui.checkbox(&mut self.config.player.tags, "Show Tags");
+
+                self.section_title(ui, "Colors");
+
+                if let Some(color) = self.color_picker(ui, &self.config.player.box_color, "Box") {
+                    self.config.player.box_color = color;
+                }
+
+                if let Some(color) =
+                    self.color_picker(ui, &self.config.player.skeleton_color, "Skeleton")
+                {
+                    self.config.player.skeleton_color = color;
+                }
+            });
+    }
 
     fn hud_settings(&mut self, ui: &mut Ui) {
         ui.columns(2, |cols| {
@@ -402,85 +427,94 @@ impl App {
             }
             ui.label("Line Width");
         });
+
+        ui.horizontal(|ui| {
+            if ui
+                .add(
+                    DragValue::new(&mut self.config.hud.font_size)
+                        .range(1.0..=99.0)
+                        .speed(0.2)
+                        .max_decimals(1),
+                )
+                .changed()
+            {
+                self.send_config();
+            }
+            ui.label("Font Size");
+        });
     }
 
     fn unsafe_settings(&mut self, ui: &mut Ui) {
-        egui::Grid::new("unsafe").num_columns(4).show(ui, |ui| {
-            ui.label("No Flash");
-            if ui.checkbox(&mut self.config.misc.no_flash, "").changed() {
-                self.send_config();
-            }
+        egui::ScrollArea::vertical()
+            .id_salt("unsafe")
+            .show(ui, |ui| {
+                ui.label("No Flash");
+                ui.separator();
 
-            ui.label("Max Flash Alpha");
-            if ui
-                .add(
-                    DragValue::new(&mut self.config.misc.max_flash_alpha)
-                        .range(0.0..=1.0)
-                        .speed(0.002)
-                        .max_decimals(2),
-                )
-                .changed()
-            {
-                self.send_config();
-            }
-            ui.end_row();
+                if ui
+                    .checkbox(&mut self.config.misc.no_flash, "No Flash")
+                    .changed()
+                {
+                    self.send_config();
+                }
 
-            ui.label("FOV Changer");
-            if ui.checkbox(&mut self.config.misc.fov_changer, "").changed() {
-                self.send_config();
-            }
+                ui.horizontal(|ui| {
+                    if ui
+                        .add(
+                            DragValue::new(&mut self.config.misc.max_flash_alpha)
+                                .range(0.0..=1.0)
+                                .speed(0.002)
+                                .max_decimals(2),
+                        )
+                        .changed()
+                    {
+                        self.send_config();
+                    }
+                    ui.label("Max Flash Alpha");
+                });
 
-            ui.label("Desired FOV");
-            if ui
-                .add(
-                    DragValue::new(&mut self.config.misc.desired_fov)
-                        .speed(0.1)
-                        .range(1..=179),
-                )
-                .changed()
-            {
-                self.send_config();
-            }
+                if ui
+                    .checkbox(&mut self.config.misc.fov_changer, "FOV Changer")
+                    .changed()
+                {
+                    self.send_config();
+                }
 
-            if self.config.misc.fov_changer && ui.button("Reset").clicked() {
-                self.config.misc.desired_fov = cs2::DEFAULT_FOV;
-                self.send_config();
-            }
-            ui.end_row();
-        });
+                ui.horizontal(|ui| {
+                    if ui
+                        .add(
+                            DragValue::new(&mut self.config.misc.desired_fov)
+                                .speed(0.1)
+                                .range(1..=179),
+                        )
+                        .changed()
+                    {
+                        self.send_config();
+                    }
+                    ui.label("Desired FOV");
+
+                    if ui.button("Reset").clicked() {
+                        self.config.misc.desired_fov = cs2::DEFAULT_FOV;
+                        self.send_config();
+                    }
+                });
+            });
     }
-
-    fn unsafe_left(&mut self, ui: &mut Ui) {}
-
-    fn unsafe_right(&mut self, ui: &mut Ui) {}
 
     fn config_settings(&mut self, ui: &mut Ui) {
-        ui.columns(2, |cols| {
-            let left = &mut cols[0];
-            egui::ScrollArea::vertical()
-                .id_salt("config_left")
-                .show(left, |left| {
-                    self.config_left(left);
-                });
+        egui::ScrollArea::vertical()
+            .id_salt("config")
+            .show(ui, |ui| {
+                ui.label("Config");
+                ui.separator();
 
-            let right = &mut cols[1];
-            egui::ScrollArea::vertical()
-                .id_salt("config_right")
-                .show(right, |right| {
-                    self.config_right(right);
-                });
-        });
+                if ui.button("Reset").clicked() {
+                    self.config = Config::default();
+                    self.send_config();
+                    info!("loaded default config");
+                }
+            });
     }
-
-    fn config_left(&mut self, ui: &mut Ui) {
-        if ui.button("Reset").clicked() {
-            self.config = Config::default();
-            self.send_config();
-            info!("loaded default config");
-        }
-    }
-
-    fn config_right(&mut self, ui: &mut Ui) {}
 
     fn misc_settings(&mut self, ui: &mut Ui) {
         ui.columns(2, |cols| {
@@ -535,23 +569,30 @@ impl App {
         });
     }
 
-    fn color_picker(&self, ui: &mut Ui, color: &mut Color32) {
+    fn color_picker(&self, ui: &mut Ui, color: &Color32, label: &str) -> Option<Color32> {
         let [mut r, mut g, mut b, _] = color.to_array();
-        if ui.add(DragValue::new(&mut r).prefix("r: ")).changed() {
-            *color = Color32::from_rgb(r, g, b);
+        let res = ui
+            .horizontal(|ui| {
+                let (response, painter) =
+                    ui.allocate_painter(ui.spacing().interact_size, Sense::hover());
+                painter.rect_filled(
+                    response.rect,
+                    ui.style().visuals.widgets.inactive.corner_radius,
+                    *color,
+                );
+                let mut res = ui.add(DragValue::new(&mut r).prefix("r: "));
+                res = res.union(ui.add(DragValue::new(&mut g).prefix("g: ")));
+                res = res.union(ui.add(DragValue::new(&mut b).prefix("b: ")));
+                ui.label(label);
+                res
+            })
+            .inner;
+
+        if res.changed() {
+            Some(Color32::from_rgb(r, g, b))
+        } else {
+            None
         }
-        if ui.add(DragValue::new(&mut g).prefix("g: ")).changed() {
-            *color = Color32::from_rgb(r, g, b);
-        }
-        if ui.add(DragValue::new(&mut b).prefix("b: ")).changed() {
-            *color = Color32::from_rgb(r, g, b);
-        };
-        let (response, painter) = ui.allocate_painter(ui.spacing().interact_size, Sense::hover());
-        painter.rect_filled(
-            response.rect,
-            ui.style().visuals.widgets.inactive.corner_radius,
-            *color,
-        );
     }
 
     fn overlay(&self, ctx: &Context) {
@@ -595,6 +636,18 @@ impl App {
             self.player_box(&painter, player, data);
             self.skeleton(&painter, player, data);
         }
+
+        if data.bomb.planted {
+            if let Some(pos) = world_to_screen(&data.bomb.position, data) {
+                painter.text(
+                    pos,
+                    Align2::CENTER_CENTER,
+                    format!("{}", data.bomb.timer),
+                    egui::FontId::proportional(self.config.hud.font_size),
+                    self.config.hud.text_color,
+                );
+            }
+        }
     }
 
     fn player_box(&self, painter: &Painter, player: &PlayerData, data: &Data) {
@@ -602,7 +655,7 @@ impl App {
         let color = match &self.config.player.draw_box {
             crate::config::DrawMode::None => health_color,
             crate::config::DrawMode::Health => health_color,
-            crate::config::DrawMode::Color(color) => *color,
+            crate::config::DrawMode::Color => self.config.player.box_color,
         };
         let stroke = Stroke::new(self.config.hud.line_width, color);
         let font = egui::FontId::proportional(self.config.hud.font_size);
@@ -686,7 +739,7 @@ impl App {
         let font_size = self.config.hud.font_size;
         if self.config.player.player_name {
             painter.text(
-                pos2(tr.x+ew, tr.y + offset),
+                pos2(tr.x + ew, tr.y + offset),
                 Align2::LEFT_TOP,
                 &player.name,
                 font.clone(),
@@ -694,12 +747,46 @@ impl App {
             );
             offset += font_size;
         }
+
         if self.config.player.weapon_name {
             painter.text(
-                pos2(tr.x+ew, tr.y + offset),
+                pos2(tr.x + ew, tr.y + offset),
                 Align2::LEFT_TOP,
                 player.weapon.as_ref(),
-                font,
+                font.clone(),
+                self.config.hud.text_color,
+            );
+            offset += font_size;
+        }
+
+        if self.config.player.tags && player.has_defuser {
+            painter.text(
+                pos2(tr.x + ew, tr.y + offset),
+                Align2::LEFT_TOP,
+                "defuser",
+                font.clone(),
+                self.config.hud.text_color,
+            );
+            offset += font_size;
+        }
+
+        if self.config.player.tags && player.has_helmet {
+            painter.text(
+                pos2(tr.x + ew, tr.y + offset),
+                Align2::LEFT_TOP,
+                "helmet",
+                font.clone(),
+                self.config.hud.text_color,
+            );
+            offset += font_size;
+        }
+
+        if self.config.player.tags && player.has_bomb {
+            painter.text(
+                pos2(tr.x + ew, tr.y + offset),
+                Align2::LEFT_TOP,
+                "bomb",
+                font.clone(),
                 self.config.hud.text_color,
             );
             offset += font_size;
@@ -710,7 +797,7 @@ impl App {
         let color = match &self.config.player.draw_skeleton {
             crate::config::DrawMode::None => return,
             crate::config::DrawMode::Health => self.health_color(player.health),
-            crate::config::DrawMode::Color(color) => *color,
+            crate::config::DrawMode::Color => self.config.player.skeleton_color,
         };
         let stroke = Stroke::new(self.config.hud.line_width, color);
 

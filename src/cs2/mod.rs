@@ -7,7 +7,7 @@ use crate::{
     aimbot::Aimbot,
     config::{Config, WeaponConfig},
     constants::cs2,
-    cs2::{bones::Bones, offsets::Offsets, target::Target, weapon::Weapon},
+    cs2::{bones::Bones, offsets::Offsets, planted_c4::PlantedC4, target::Target, weapon::Weapon},
     data::{Data, PlayerData},
     key_codes::KeyCode,
     math::{angles_from_vector, vec2_clamp},
@@ -103,12 +103,14 @@ impl Aimbot for CS2 {
             let player_data = PlayerData {
                 health: player.health(self),
                 armor: player.armor(self),
-                team: player.team(self),
                 position: player.position(self),
                 head: player.bone_position(self, Bones::Head.u64()),
                 name: player.name(self),
                 weapon: player.weapon(self),
                 bones: player.all_bones(self),
+                has_defuser: player.has_defuser(self),
+                has_helmet: player.has_helmet(self),
+                has_bomb: player.has_bomb(self),
             };
             data.players.push(player_data);
         }
@@ -125,6 +127,15 @@ impl Aimbot for CS2 {
         } else {
             data.window_position = self.process.read(sdl_window + 0x18);
             data.window_size = self.process.read(sdl_window + 0x18 + 0x08);
+        }
+
+        if let Some(bomb) = PlantedC4::get(self) {
+            data.bomb.planted = bomb.is_planted(self);
+            data.bomb.timer = bomb.time_to_explosion(self);
+            data.bomb.position = bomb.position(self);
+            data.bomb.being_defused = bomb.is_being_defused(self);
+        } else {
+            data.bomb.planted = false;
         }
     }
 }
@@ -243,7 +254,7 @@ impl CS2 {
 
         let Some(planted_c4) = self.process.scan_pattern(
             &[
-                0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00, 0x8b, 0x10, 0x85, 0xd2, 0x7e,
+                0x48, 0x8D, 0x05, 0x00, 0x00, 0x00, 0x00, 0x8B, 0x10, 0x85, 0xD2, 0x7E,
             ],
             "xxx????xxxxx".as_bytes(),
             offsets.library.client,
@@ -251,7 +262,7 @@ impl CS2 {
             warn!("could not find planted c4 offset");
             return None;
         };
-        offsets.direct.planted_c4 = planted_c4;
+        offsets.direct.planted_c4 = self.process.get_relative_address(planted_c4, 0x03, 0x0F);
 
         let Some(global_vars) = self.process.scan_pattern(
             &[

@@ -63,10 +63,12 @@ impl PlantedC4 {
 
     pub fn time_to_explosion(&self, cs2: &CS2) -> f32 {
         let global_vars: u64 = cs2.process.read(cs2.offsets.direct.global_vars);
-        let current_time: f32 = cs2.process.read(global_vars + 52);
-        cs2.process
-            .read::<f32>(self.handle + cs2.offsets.planted_c4.blow_time)
-            - current_time
+        let current_time: f32 = cs2.process.read(global_vars + 0x30);
+        let blow_time: f32 = cs2
+            .process
+            .read(self.handle + cs2.offsets.planted_c4.blow_time);
+
+        blow_time - current_time
     }
 
     pub fn position(&self, cs2: &CS2) -> Vec3 {

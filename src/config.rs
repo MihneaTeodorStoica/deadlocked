@@ -5,7 +5,7 @@ use std::{
 use egui::Color32;
 use log::warn;
 use serde::{Deserialize, Serialize};
-use strum::IntoEnumIterator;
+use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{color::Colors, cs2::weapon::Weapon, key_codes::KeyCode};
 
@@ -129,18 +129,20 @@ impl Default for AimbotConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, EnumIter, Serialize, Deserialize)]
 pub enum DrawMode {
     None,
     Health,
-    Color(Color32),
+    Color,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayerConfig {
     pub enable: bool,
     pub draw_box: DrawMode,
+    pub box_color: Color32,
     pub draw_skeleton: DrawMode,
+    pub skeleton_color: Color32,
     pub health_bar: bool,
     pub armor_bar: bool,
     pub player_name: bool,
@@ -152,8 +154,10 @@ impl Default for PlayerConfig {
     fn default() -> Self {
         Self {
             enable: true,
-            draw_box: DrawMode::Color(Colors::TEXT),
+            draw_box: DrawMode::Color,
+            box_color: Colors::TEXT,
             draw_skeleton: DrawMode::Health,
+            skeleton_color: Colors::TEXT,
             health_bar: true,
             armor_bar: true,
             player_name: true,
