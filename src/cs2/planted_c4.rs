@@ -2,22 +2,6 @@ use glam::Vec3;
 
 use crate::cs2::{CS2, player::Player};
 
-#[derive(Debug)]
-pub enum BombSite {
-    A,
-    B,
-}
-
-impl BombSite {
-    pub fn from_int(site: i32) -> Option<Self> {
-        match site {
-            0 => Some(Self::A),
-            1 => Some(Self::B),
-            _ => None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlantedC4 {
     handle: u64,
@@ -52,13 +36,6 @@ impl PlantedC4 {
         cs2.process
             .read::<u8>(self.handle + cs2.offsets.planted_c4.being_defused)
             != 0
-    }
-
-    pub fn bomb_site(&self, cs2: &CS2) -> Option<BombSite> {
-        let site = cs2
-            .process
-            .read(self.handle + cs2.offsets.planted_c4.bomb_site);
-        BombSite::from_int(site)
     }
 
     pub fn time_to_explosion(&self, cs2: &CS2) -> f32 {

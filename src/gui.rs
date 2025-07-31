@@ -1,6 +1,4 @@
-use egui::{
-    Align, Align2, Color32, Context, DragValue, Painter, Response, Sense, Stroke, Ui, pos2,
-};
+use egui::{Align, Align2, Color32, Context, DragValue, Painter, Sense, Stroke, Ui, pos2};
 use egui_glow::glow;
 use glam::vec3;
 use log::info;
@@ -27,7 +25,6 @@ pub enum Tab {
     Hud,
     Unsafe,
     Config,
-    Misc,
 }
 
 #[derive(PartialEq)]
@@ -55,7 +52,6 @@ impl App {
                 ui.selectable_value(&mut self.current_tab, Tab::Hud, "\u{f0379} Hud");
                 ui.selectable_value(&mut self.current_tab, Tab::Unsafe, "\u{f0ce6} Unsafe");
                 ui.selectable_value(&mut self.current_tab, Tab::Config, "\u{f168b} Config");
-                ui.selectable_value(&mut self.current_tab, Tab::Misc, "\u{f01d8} Misc");
 
                 ui.with_layout(egui::Layout::bottom_up(Align::Min), |ui| {
                     ui.label(VERSION);
@@ -77,37 +73,20 @@ impl App {
                 Tab::Player => self.player_settings(ui),
                 Tab::Hud => self.hud_settings(ui),
                 Tab::Unsafe => self.unsafe_settings(ui),
-                Tab::Config => self.config_settings(ui),
-                Tab::Misc => self.misc_settings(ui),
+                Tab::Config => self.config_settings(ui, ctx),
             }
         });
-    }
-
-    fn held_weapon_config(&mut self) -> &mut WeaponConfig {
-        let data = self.data.lock().unwrap();
-        if self
-            .config
-            .aimbot
-            .weapons
-            .get(&data.weapon)
-            .unwrap()
-            .enabled
-        {
-            self.config.aimbot.weapons.get_mut(&data.weapon).unwrap()
-        } else {
-            &mut self.config.aimbot.global
-        }
     }
 
     fn weapon_config(&mut self) -> &mut WeaponConfig {
         if self.aimbot_tab == AimbotTab::Weapon {
             self.config
-                .aimbot
+                .aim
                 .weapons
                 .get_mut(&self.aimbot_weapon)
                 .unwrap()
         } else {
-            &mut self.config.aimbot.global
+            &mut self.config.aim.global
         }
     }
 
@@ -126,6 +105,9 @@ impl App {
                     .selected_text(format!("{:?}", self.aimbot_weapon))
                     .show_ui(ui, |ui| {
                         for weapon in Weapon::iter() {
+                            if weapon == Weapon::Unknown {
+                                continue;
+                            }
                             let text = format!("{:?}", weapon);
                             ui.selectable_value(&mut self.aimbot_weapon, weapon, text);
                         }
@@ -155,12 +137,12 @@ impl App {
         ui.separator();
 
         egui::ComboBox::new("aimbot_hotkey", "Hotkey")
-            .selected_text(format!("{:?}", self.config.aimbot.hotkey))
+            .selected_text(format!("{:?}", self.config.aim.hotkey))
             .show_ui(ui, |ui| {
                 for key_code in KeyCode::iter() {
                     let text = format!("{:?}", &key_code);
                     if ui
-                        .selectable_value(&mut self.config.aimbot.hotkey, key_code, text)
+                        .selectable_value(&mut self.config.aim.hotkey, key_code, text)
                         .clicked()
                     {
                         self.send_config();
@@ -174,7 +156,7 @@ impl App {
             "Enable Override"
         };
         if ui
-            .checkbox(&mut self.weapon_config().enabled, enable_label)
+            .checkbox(&mut self.weapon_config().aimbot.enabled, enable_label)
             .changed()
         {
             self.send_config();
@@ -183,7 +165,7 @@ impl App {
         ui.horizontal(|ui| {
             if ui
                 .add(
-                    DragValue::new(&mut self.weapon_config().fov)
+                    DragValue::new(&mut self.weapon_config().aimbot.fov)
                         .range(0.1..=360.0)
                         .suffix("°")
                         .speed(0.02)
@@ -199,7 +181,7 @@ impl App {
         ui.horizontal(|ui| {
             if ui
                 .add(
-                    DragValue::new(&mut self.weapon_config().smooth)
+                    DragValue::new(&mut self.weapon_config().aimbot.smooth)
                         .range(0.0..=10.0)
                         .speed(0.02)
                         .max_decimals(1),
@@ -214,7 +196,7 @@ impl App {
         ui.horizontal(|ui| {
             if ui
                 .add(
-                    DragValue::new(&mut self.weapon_config().start_bullet)
+                    DragValue::new(&mut self.weapon_config().aimbot.start_bullet)
                         .range(0..=10)
                         .speed(0.05),
                 )
@@ -226,14 +208,14 @@ impl App {
         });
 
         if ui
-            .checkbox(&mut self.weapon_config().multibone, "Multibone")
+            .checkbox(&mut self.weapon_config().aimbot.multibone, "Multibone")
             .changed()
         {
             self.send_config();
         }
 
         if ui
-            .checkbox(&mut self.weapon_config().aim_lock, "Aim Lock")
+            .checkbox(&mut self.weapon_config().aimbot.aim_lock, "Aim Lock")
             .changed()
         {
             self.send_config();
@@ -243,7 +225,7 @@ impl App {
 
         if ui
             .checkbox(
-                &mut self.weapon_config().visibility_check,
+                &mut self.weapon_config().aimbot.visibility_check,
                 "Visibility Check",
             )
             .changed()
@@ -252,7 +234,7 @@ impl App {
         }
 
         if ui
-            .checkbox(&mut self.weapon_config().flash_check, "Flash Check")
+            .checkbox(&mut self.weapon_config().aimbot.flash_check, "Flash Check")
             .changed()
         {
             self.send_config();
@@ -276,12 +258,12 @@ impl App {
         }
 
         egui::ComboBox::new("triggerbot_hotkey", "Hotkey")
-            .selected_text(format!("{:?}", self.config.aimbot.triggerbot_hotkey))
+            .selected_text(format!("{:?}", self.config.aim.triggerbot_hotkey))
             .show_ui(ui, |ui| {
                 for key_code in KeyCode::iter() {
                     let text = format!("{:?}", &key_code);
                     if ui
-                        .selectable_value(&mut self.config.aimbot.triggerbot_hotkey, key_code, text)
+                        .selectable_value(&mut self.config.aim.triggerbot_hotkey, key_code, text)
                         .clicked()
                     {
                         self.send_config();
@@ -302,10 +284,69 @@ impl App {
             ui.label("Delay (ms)");
         });
 
-        self.section_title(ui, "RCS");
+        self.section_title(ui, "Checks");
 
         if ui
-            .checkbox(&mut self.weapon_config().rcs, "Enable RCS")
+            .checkbox(
+                &mut self.weapon_config().triggerbot.visibility_check,
+                "Visibility Check",
+            )
+            .changed()
+        {
+            self.send_config();
+        }
+
+        if ui
+            .checkbox(
+                &mut self.weapon_config().triggerbot.flash_check,
+                "Flash Check",
+            )
+            .changed()
+        {
+            self.send_config();
+        }
+
+        if ui
+            .checkbox(
+                &mut self.weapon_config().triggerbot.scope_check,
+                "Scope Check",
+            )
+            .changed()
+        {
+            self.send_config();
+        }
+
+        if ui
+            .checkbox(
+                &mut self.weapon_config().triggerbot.velocity_check,
+                "Velocity Check",
+            )
+            .changed()
+        {
+            self.send_config();
+        }
+
+        ui.horizontal(|ui| {
+            if ui
+                .add(DragValue::new(
+                    &mut self.weapon_config().triggerbot.velocity_threshold,
+                ))
+                .changed()
+            {
+                self.send_config();
+            }
+            ui.label("Velocity Threshold");
+        });
+
+        self.section_title(ui, "RCS");
+
+        let enable_label = if self.aimbot_tab == AimbotTab::Global {
+            "Enable RCS"
+        } else {
+            "Enable Override"
+        };
+        if ui
+            .checkbox(&mut self.weapon_config().rcs.enabled, enable_label)
             .changed()
         {
             self.send_config();
@@ -314,10 +355,9 @@ impl App {
         ui.horizontal(|ui| {
             if ui
                 .add(
-                    DragValue::new(&mut self.weapon_config().rcs_smooth)
-                        .range(0.0..=10.0)
-                        .speed(0.02)
-                        .max_decimals(1),
+                    DragValue::new(&mut self.weapon_config().rcs.smooth)
+                        .range(0.0..=1.0)
+                        .speed(0.02),
                 )
                 .changed()
             {
@@ -394,19 +434,8 @@ impl App {
         ui.label("HUD");
         ui.separator();
 
-        if ui
-            .checkbox(&mut self.config.hud.bomb_timer, "Bomb Timer")
-            .changed()
-        {
-            self.send_config();
-        }
-
-        if ui
-            .checkbox(&mut self.config.hud.fov_circle, "FOV Circle")
-            .changed()
-        {
-            self.send_config();
-        }
+        ui.checkbox(&mut self.config.hud.bomb_timer, "Bomb Timer");
+        ui.checkbox(&mut self.config.hud.fov_circle, "FOV Circle");
     }
 
     fn hud_right(&mut self, ui: &mut Ui) {
@@ -414,34 +443,26 @@ impl App {
         ui.separator();
 
         ui.horizontal(|ui| {
-            if ui
-                .add(
-                    DragValue::new(&mut self.config.hud.line_width)
-                        .range(0.1..=8.0)
-                        .speed(0.02)
-                        .max_decimals(1),
-                )
-                .changed()
-            {
-                self.send_config();
-            }
+            ui.add(
+                DragValue::new(&mut self.config.hud.line_width)
+                    .range(0.1..=8.0)
+                    .speed(0.02)
+                    .max_decimals(1),
+            );
             ui.label("Line Width");
         });
 
         ui.horizontal(|ui| {
-            if ui
-                .add(
-                    DragValue::new(&mut self.config.hud.font_size)
-                        .range(1.0..=99.0)
-                        .speed(0.2)
-                        .max_decimals(1),
-                )
-                .changed()
-            {
-                self.send_config();
-            }
+            ui.add(
+                DragValue::new(&mut self.config.hud.font_size)
+                    .range(1.0..=99.0)
+                    .speed(0.2)
+                    .max_decimals(1),
+            );
             ui.label("Font Size");
         });
+
+        ui.checkbox(&mut self.config.hud.debug, "Debug Overlay");
     }
 
     fn unsafe_settings(&mut self, ui: &mut Ui) {
@@ -501,7 +522,7 @@ impl App {
             });
     }
 
-    fn config_settings(&mut self, ui: &mut Ui) {
+    fn config_settings(&mut self, ui: &mut Ui, ctx: &Context) {
         egui::ScrollArea::vertical()
             .id_salt("config")
             .show(ui, |ui| {
@@ -513,30 +534,30 @@ impl App {
                     self.send_config();
                     info!("loaded default config");
                 }
+
+                self.section_title(ui, "Accent Color");
+
+                egui::ComboBox::new("accent_color", "Accent Color")
+                    .selected_text(format!("{:?}", self.config.accent_color))
+                    .show_ui(ui, |ui| {
+                        for (name, color) in Colors::ACCENT_COLORS {
+                            if ui
+                                .add(
+                                    egui::Button::selectable(
+                                        color == self.config.accent_color,
+                                        name,
+                                    )
+                                    .fill(color),
+                                )
+                                .clicked()
+                            {
+                                self.config.accent_color = color;
+                                ctx.style_mut(|style| style.visuals.selection.bg_fill = color);
+                            }
+                        }
+                    });
             });
     }
-
-    fn misc_settings(&mut self, ui: &mut Ui) {
-        ui.columns(2, |cols| {
-            let left = &mut cols[0];
-            egui::ScrollArea::vertical()
-                .id_salt("misc_left")
-                .show(left, |left| {
-                    self.misc_left(left);
-                });
-
-            let right = &mut cols[1];
-            egui::ScrollArea::vertical()
-                .id_salt("misc_right")
-                .show(right, |right| {
-                    self.misc_right(right);
-                });
-        });
-    }
-
-    fn misc_left(&mut self, ui: &mut Ui) {}
-
-    fn misc_right(&mut self, ui: &mut Ui) {}
 
     fn add_game_status(&self, ui: &mut Ui) {
         ui.horizontal_top(|ui| {
@@ -637,7 +658,7 @@ impl App {
             self.skeleton(&painter, player, data);
         }
 
-        if data.bomb.planted {
+        if data.bomb.planted && self.config.hud.bomb_timer {
             if let Some(pos) = world_to_screen(&data.bomb.position, data) {
                 painter.text(
                     pos,
@@ -789,7 +810,6 @@ impl App {
                 font.clone(),
                 self.config.hud.text_color,
             );
-            offset += font_size;
         }
     }
 

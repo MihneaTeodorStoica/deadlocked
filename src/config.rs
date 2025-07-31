@@ -30,16 +30,58 @@ impl AimbotStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    pub aimbot: AimbotConfig,
+    pub aim: AimConfig,
     pub player: PlayerConfig,
     pub hud: HudConfig,
     pub misc: UnsafeConfig,
+    pub accent_color: Color32,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            aim: AimConfig::default(),
+            player: PlayerConfig::default(),
+            hud: HudConfig::default(),
+            misc: UnsafeConfig::default(),
+            accent_color: Colors::BLUE,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct WeaponConfig {
+    pub aimbot: AimbotConfig,
+    pub rcs: RcsConfig,
+    pub triggerbot: TriggerbotConfig,
+}
+
+impl WeaponConfig {
+    pub fn enabled(enabled: bool) -> Self {
+        let aimbot = AimbotConfig {
+            enabled,
+            ..Default::default()
+        };
+        let rcs = RcsConfig {
+            enabled,
+            ..Default::default()
+        };
+        let triggerbot = TriggerbotConfig {
+            enabled,
+            ..Default::default()
+        };
+        Self {
+            aimbot,
+            rcs,
+            triggerbot,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WeaponConfig {
+pub struct AimbotConfig {
     pub enabled: bool,
     pub start_bullet: i32,
     pub aim_lock: bool,
@@ -48,21 +90,9 @@ pub struct WeaponConfig {
     pub fov: f32,
     pub smooth: f32,
     pub multibone: bool,
-    pub rcs: bool,
-    pub rcs_smooth: f32,
-    pub triggerbot: TriggerbotConfig,
 }
 
-impl WeaponConfig {
-    pub fn enabled(enabled: bool) -> Self {
-        Self {
-            enabled,
-            ..Default::default()
-        }
-    }
-}
-
-impl Default for WeaponConfig {
+impl Default for AimbotConfig {
     fn default() -> Self {
         Self {
             enabled: false,
@@ -73,9 +103,21 @@ impl Default for WeaponConfig {
             fov: 2.5,
             smooth: 5.0,
             multibone: true,
-            rcs: false,
-            rcs_smooth: 1.5,
-            triggerbot: TriggerbotConfig::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RcsConfig {
+    pub enabled: bool,
+    pub smooth: f32,
+}
+
+impl Default for RcsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            smooth: 0.3,
         }
     }
 }
@@ -106,17 +148,20 @@ impl Default for TriggerbotConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AimbotConfig {
+pub struct AimConfig {
     pub hotkey: KeyCode,
     pub triggerbot_hotkey: KeyCode,
     pub global: WeaponConfig,
     pub weapons: HashMap<Weapon, WeaponConfig>,
 }
 
-impl Default for AimbotConfig {
+impl Default for AimConfig {
     fn default() -> Self {
         let mut weapons = HashMap::new();
         for weapon in Weapon::iter() {
+            if weapon == Weapon::Unknown {
+                continue;
+            }
             weapons.insert(weapon, WeaponConfig::default());
         }
 

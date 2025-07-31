@@ -173,7 +173,6 @@ impl Offset for WeaponServicesOffsets {
 pub struct PlantedC4Offsets {
     pub is_activated: u64,  // bool (m_bC4Activated)
     pub is_ticking: u64,    // bool (m_bBombTicking)
-    pub bomb_site: u64,     // i32 (m_nBombSite)
     pub blow_time: u64,     // f32 (m_flC4Blow)
     pub being_defused: u64, // bool (m_bBeingDefused)
 }
@@ -182,7 +181,6 @@ impl Offset for PlantedC4Offsets {
     fn all_found(&self) -> bool {
         self.is_activated != 0
             && self.is_ticking != 0
-            && self.bomb_site != 0
             && self.blow_time != 0
             && self.being_defused != 0
     }

@@ -10,12 +10,8 @@ pub struct Schema {
 
 impl Schema {
     pub fn new(process: &Process, schema_module: u64) -> Option<Self> {
-        let schema_system = process.scan_pattern(
-            &[
-                0x48, 0x8D, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x3D, 0x00, 0x00, 0x00, 0x00,
-                0xE8, 0x00, 0x00, 0x00, 0x00, 0xEB,
-            ],
-            "xxx????xxx????x????x".as_bytes(),
+        let schema_system = process.scan(
+            "48 8D 0D ? ? ? ? 48 8D 3D ? ? ? ? E8 ? ? ? ? EB",
             schema_module,
         )?;
         let schema_system = process.get_relative_address(schema_system, 10, 14);
@@ -32,6 +28,7 @@ impl Schema {
         Some(Self { scopes })
     }
 
+    #[allow(unused)]
     pub fn get(&self, library: &str, class: &str, field: &str) -> Option<u64> {
         let scope = self.scopes.get(library)?;
         let class = scope.get_class(class)?;
@@ -100,7 +97,7 @@ impl ModuleScope {
     }
 }
 
-struct Class {
+pub struct Class {
     name: String,
     fields: HashMap<String, u64>,
 }

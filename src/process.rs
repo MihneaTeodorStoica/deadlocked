@@ -71,11 +71,6 @@ impl Process {
         unsafe { process_vm_writev(self.pid, &local_iov, 1, &remote_iov, 1, 0) };
     }
 
-    pub fn write_file<T: NoUninit>(&self, address: u64, value: T) {
-        let buffer = bytemuck::bytes_of(&value);
-        self.file.write_at(buffer, address).unwrap_or(0);
-    }
-
     pub fn read_string(&self, address: u64) -> String {
         let mut string = String::with_capacity(8);
         let mut i = address;
@@ -126,30 +121,46 @@ impl Process {
     }
 
     pub fn scan(&self, pattern: &str, base_address: u64) -> Option<u64> {
-        None
-    }
+        let mut bytes = Vec::with_capacity(8);
+        let mut mask = Vec::with_capacity(8);
 
-    pub fn scan_pattern(&self, pattern: &[u8], mask: &[u8], base_address: u64) -> Option<u64> {
-        assert!(pattern.len() == mask.len(), "pattern length mismatch");
+        for token in pattern.split_whitespace() {
+            if token == "?" || token == "??" {
+                bytes.push(0x00);
+                mask.push(0x00);
+            } else if token.len() == 2 {
+                match u8::from_str_radix(token, 16) {
+                    Ok(b) => {
+                        bytes.push(b);
+                        mask.push(0xFF);
+                    }
+                    Err(_) => {
+                        log::warn!("unrecognized pattern token \"{token}\" in pattern {pattern}")
+                    }
+                }
+            } else {
+                log::warn!("unrecognized pattern token \"{token}\" in pattern {pattern}")
+            }
+        }
 
         let module = self.dump_module(base_address);
         if module.len() < 500 {
             return None;
         }
 
-        let pattern_length = pattern.len();
+        let pattern_length = bytes.len();
         let stop_index = module.len() - pattern_length;
         'outer: for i in 0..stop_index {
             for j in 0..pattern_length {
-                if mask[j] == b'x' && module[i + j] != pattern[j] {
+                if mask[j] == 0xFF && module[i + j] != bytes[j] {
                     continue 'outer;
                 }
             }
             let address = base_address + i as u64;
-            debug!("found pattern {pattern:?} at {address}");
+            debug!("found pattern {pattern} at {address}");
             return Some(address);
         }
-        debug!("pattern {pattern:?} not found, might be outdated");
+        debug!("pattern {pattern} not found, might be outdated");
         None
     }
 
@@ -284,30 +295,6 @@ impl Process {
         self.read(self.read::<u64>(interface_address) + (index * 8))
     }
 
-    pub fn read_vec<T: AnyBitPattern + Default>(&self, data: &[u8], address: u64) -> T {
-        let size = std::mem::size_of::<T>();
-        if address as usize + size > data.len() {
-            return T::default();
-        }
-
-        let slice = &data[address as usize..address as usize + size];
-        bytemuck::try_from_bytes(slice).copied().unwrap_or_default()
-    }
-
-    pub fn read_string_vec(&self, data: &[u8], address: u64) -> String {
-        let mut string = String::new();
-        let mut i = address;
-        loop {
-            let c = data[i as usize];
-            if c == 0 {
-                break;
-            }
-            string.push(c as char);
-            i += 1;
-        }
-        string
-    }
-
     fn get_pid(process_name: &str) -> Option<i32> {
         for dir in read_dir("/proc").unwrap() {
             let entry = dir.unwrap();
@@ -343,62 +330,5 @@ impl Process {
         } else {
             Some(process)
         }
-    }
-}
-
-pub struct Module {
-    base_address: u64,
-    data: Vec<u8>,
-}
-
-impl Module {
-    pub fn new(process: &Process, base_address: u64) -> Self {
-        Self {
-            base_address,
-            data: process.dump_module(base_address),
-        }
-    }
-
-    pub fn base(&self) -> u64 {
-        self.base_address
-    }
-
-    pub fn size(&self) -> usize {
-        self.data.len()
-    }
-
-    pub fn data(&self) -> &[u8] {
-        &self.data
-    }
-
-    pub fn read<T: AnyBitPattern + Default>(&self, address: u64) -> T {
-        let offset = if address > self.size() as u64 {
-            address - self.base_address
-        } else {
-            address
-        };
-        if offset as usize + std::mem::size_of::<T>() > self.data.len() {
-            return T::default();
-        }
-        let slice = &self.data[offset as usize..offset as usize + std::mem::size_of::<T>()];
-        bytemuck::try_from_bytes(slice).copied().unwrap_or_default()
-    }
-
-    pub fn read_string(&self, address: u64) -> String {
-        let mut string = String::with_capacity(8);
-        let mut i = if address > self.size() as u64 {
-            address - self.base_address
-        } else {
-            address
-        };
-        while i < self.data.len() as u64 {
-            let c = self.read::<u8>(i);
-            if c == 0 {
-                break;
-            }
-            string.push(c as char);
-            i += 1;
-        }
-        string
     }
 }

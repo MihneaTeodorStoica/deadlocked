@@ -10,7 +10,7 @@ use super::{CS2, bones::Bones, player::Player};
 
 impl CS2 {
     pub fn aimbot(&mut self, config: &Config, mouse: &mut Mouse) {
-        let config = self.weapon_config(config);
+        let config = self.aimbot_config(config);
 
         if !config.enabled || self.target.player.is_none() {
             return;
@@ -25,7 +25,6 @@ impl CS2 {
             return;
         }
 
-        // todo: spotted mask is always 0?
         if config.visibility_check {
             let spotted_mask = target.spotted_mask(self);
             if (spotted_mask & (1 << self.target.local_pawn_index)) == 0 {

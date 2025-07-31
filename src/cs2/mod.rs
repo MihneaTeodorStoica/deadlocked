@@ -5,7 +5,7 @@ use rcs::Recoil;
 
 use crate::{
     aimbot::Aimbot,
-    config::{Config, WeaponConfig},
+    config::{AimbotConfig, Config, RcsConfig, TriggerbotConfig},
     constants::cs2,
     cs2::{bones::Bones, offsets::Offsets, planted_c4::PlantedC4, target::Target, weapon::Weapon},
     data::{Data, PlayerData},
@@ -77,13 +77,11 @@ impl Aimbot for CS2 {
         self.no_flash(config);
         self.fov_changer(config);
 
-        if self.weapon_config(config).rcs {
-            self.rcs(mouse);
-        }
+        self.rcs(config, mouse);
 
         self.find_target();
 
-        if self.is_button_down(&config.aimbot.hotkey) {
+        if self.is_button_down(&config.aim.hotkey) {
             self.aimbot(config, mouse);
         }
     }
@@ -153,12 +151,31 @@ impl CS2 {
         }
     }
 
-    fn weapon_config<'a>(&mut self, config: &'a Config) -> &'a WeaponConfig {
-        if config.aimbot.weapons.get(&self.weapon).unwrap().enabled {
-            config.aimbot.weapons.get(&self.weapon).unwrap()
-        } else {
-            &config.aimbot.global
+    fn aimbot_config<'a>(&mut self, config: &'a Config) -> &'a AimbotConfig {
+        if let Some(weapon_config) = config.aim.weapons.get(&self.weapon) {
+            if weapon_config.aimbot.enabled {
+                return &weapon_config.aimbot;
+            }
         }
+        &config.aim.global.aimbot
+    }
+
+    fn rcs_config<'a>(&mut self, config: &'a Config) -> &'a RcsConfig {
+        if let Some(weapon_config) = config.aim.weapons.get(&self.weapon) {
+            if weapon_config.rcs.enabled {
+                return &weapon_config.rcs;
+            }
+        }
+        &config.aim.global.rcs
+    }
+
+    fn triggerbot_config<'a>(&mut self, config: &'a Config) -> &'a TriggerbotConfig {
+        if let Some(weapon_config) = config.aim.weapons.get(&self.weapon) {
+            if weapon_config.triggerbot.enabled {
+                return &weapon_config.triggerbot;
+            }
+        }
+        &config.aim.global.triggerbot
     }
 
     fn angle_to_target(&self, local_player: &Player, position: &Vec3, aim_punch: &Vec2) -> Vec2 {
@@ -210,13 +227,10 @@ impl CS2 {
         };
         offsets.interface.input = input_address;
 
-        let Some(local_player) = self.process.scan_pattern(
-            &[
-                0x48, 0x83, 0x3D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x95, 0xC0, 0xC3,
-            ],
-            "xxx????xxxxx".as_bytes(),
-            offsets.library.client,
-        ) else {
+        let Some(local_player) = self
+            .process
+            .scan("48 83 3D ? ? ? ? 00 0F 95 C0 C3", offsets.library.client)
+        else {
             warn!("could not find local player offset");
             return None;
         };
@@ -227,13 +241,10 @@ impl CS2 {
                 + 0x14,
         ) as u64;
 
-        let Some(view_matrix) = self.process.scan_pattern(
-            &[
-                0x4C, 0x8D, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x4C, 0x89, 0xE6, 0x4C, 0x8D, 0x05,
-            ],
-            "xxx????xxxxxx".as_bytes(),
-            offsets.library.client,
-        ) else {
+        let Some(view_matrix) = self
+            .process
+            .scan("4C 8D 0D ? ? ? ? 4C 89 E6 4C 8D 05", offsets.library.client)
+        else {
             warn!("could not find view matrix offset");
             return None;
         };
@@ -252,24 +263,17 @@ impl CS2 {
         let sdl_window = self.process.read(sdl_window);
         offsets.direct.sdl_window = self.process.get_relative_address(sdl_window, 0x03, 0x07);
 
-        let Some(planted_c4) = self.process.scan_pattern(
-            &[
-                0x48, 0x8D, 0x05, 0x00, 0x00, 0x00, 0x00, 0x8B, 0x10, 0x85, 0xD2, 0x7E,
-            ],
-            "xxx????xxxxx".as_bytes(),
-            offsets.library.client,
-        ) else {
+        let Some(planted_c4) = self
+            .process
+            .scan("48 8D 05 ? ? ? ? 8B 10 85 D2 7E", offsets.library.client)
+        else {
             warn!("could not find planted c4 offset");
             return None;
         };
         offsets.direct.planted_c4 = self.process.get_relative_address(planted_c4, 0x03, 0x0F);
 
-        let Some(global_vars) = self.process.scan_pattern(
-            &[
-                0x8D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x89, 0x35, 0x00, 0x00, 0x00, 0x00, 0x48,
-                0x89, 0x00, 0x00, 0xC3,
-            ],
-            "x?????xxx????xx??x".as_bytes(),
+        let Some(global_vars) = self.process.scan(
+            "8D ? ? ? ? ? 48 89 35 ? ? ? ? 48 89 ? ? C3",
             offsets.library.client,
         ) else {
             warn!("could not find global vars offset");
@@ -344,7 +348,6 @@ impl CS2 {
 
         offsets.planted_c4.is_activated = client.get("C_PlantedC4", "m_bC4Activated")?;
         offsets.planted_c4.is_ticking = client.get("C_PlantedC4", "m_bBombTicking")?;
-        offsets.planted_c4.bomb_site = client.get("C_PlantedC4", "m_nBombSite")?;
         offsets.planted_c4.blow_time = client.get("C_PlantedC4", "m_flC4Blow")?;
         offsets.planted_c4.being_defused = client.get("C_PlantedC4", "m_bBeingDefused")?;
 

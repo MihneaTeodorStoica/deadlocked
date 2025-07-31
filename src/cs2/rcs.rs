@@ -1,6 +1,6 @@
 use glam::Vec2;
 
-use crate::mouse::Mouse;
+use crate::{config::Config, mouse::Mouse};
 
 use super::{CS2, player::Player, weapon_class::WeaponClass};
 
@@ -11,7 +11,9 @@ pub struct Recoil {
 }
 
 impl CS2 {
-    pub fn rcs(&mut self, mouse: &mut Mouse) {
+    pub fn rcs(&mut self, config: &Config, mouse: &mut Mouse) {
+        let config = self.rcs_config(config);
+
         let Some(local_player) = Player::local_player(self) else {
             return;
         };
@@ -46,6 +48,7 @@ impl CS2 {
             (aim_punch.y - self.recoil.previous.y) / sensitivity * 100.0,
             -(aim_punch.x - self.recoil.previous.x) / sensitivity * 100.0,
         ) + self.recoil.unaccounted;
+        let mouse_angle = mouse_angle / (config.smooth + 1.0);
 
         self.recoil.unaccounted = Vec2::ZERO;
 

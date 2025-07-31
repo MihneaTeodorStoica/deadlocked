@@ -1,7 +1,4 @@
-use std::{
-    sync::{Arc, Mutex, mpsc},
-    time::Duration,
-};
+use std::sync::{Arc, Mutex, mpsc};
 
 use egui::{FontData, FontDefinitions, Stroke, Style};
 use egui_glow::glow;
@@ -69,7 +66,7 @@ impl App {
             mouse_status: DeviceStatus::Disconnected,
             current_tab: Tab::Aimbot,
             aimbot_tab: AimbotTab::Global,
-            aimbot_weapon: Weapon::default(),
+            aimbot_weapon: Weapon::Ak47,
         }
     }
 }
@@ -154,7 +151,7 @@ impl ApplicationHandler for App {
         }
     }
 
-    fn about_to_wait(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+    fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
         if let Some(window) = &self.gui_window {
             window.window().request_redraw();
         }

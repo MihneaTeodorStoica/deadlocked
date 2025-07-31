@@ -347,6 +347,8 @@ impl CS2 {
             return;
         };
 
+        self.weapon = local_player.weapon(self);
+
         self.players.clear();
         for i in 0..=64 {
             let player = match Player::index(self, i) {
