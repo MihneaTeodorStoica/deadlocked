@@ -1,6 +1,7 @@
 use std::num::NonZeroU32;
 
 use glutin::prelude::PossiblyCurrentGlContext;
+use winit::platform::x11::{WindowAttributesExtX11, WindowType};
 
 pub struct WindowContext {
     window: winit::window::Window,
@@ -25,6 +26,7 @@ impl WindowContext {
                 .with_resizable(true)
                 .with_transparent(true)
                 .with_window_level(winit::window::WindowLevel::AlwaysOnTop)
+                .with_x11_window_type(vec![WindowType::Tooltip])
                 .with_title("deadlocked")
         } else {
             winit::window::WindowAttributes::default()
