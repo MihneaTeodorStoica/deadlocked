@@ -70,19 +70,12 @@ impl Mouse {
                 continue;
             }
             // get device info from /sys/class/input
-            let rel_bits: Vec<u64> =
-                fs::read_to_string(format!("/sys/class/input/{}/device/capabilities/rel", name))
-                    .unwrap()
-                    .split_whitespace() // Handle multiple hex numbers
-                    .filter_map(|hex| u64::from_str_radix(hex, 16).ok()) // Decompose into individual bits
-                    .collect();
-            let mut rel = Vec::new();
-            for (i, hex) in rel_bits.iter().enumerate() {
-                let bits = decompose_bits(*hex, i);
-                rel.extend(bits);
-            }
+            let rel = decode_capabilities(&format!(
+                "/sys/class/input/{}/device/capabilities/rel",
+                name
+            ));
 
-            if !rel.contains(&(AXIS_X as u64)) || !rel.contains(&(AXIS_Y as u64)) {
+            if !rel[AXIS_X as usize] || !rel[AXIS_Y as usize] {
                 continue;
             }
 
@@ -205,9 +198,39 @@ const SYN: InputEvent = InputEvent {
     value: 0,
 };
 
-fn decompose_bits(bitmask: u64, index: usize) -> Vec<u64> {
-    (0..64)
-        .filter(|bit| (bitmask & (1 << bit)) != 0)
-        .map(|bit| bit + index as u64 * 64) // Check if the bit is set
-        .collect()
+fn hex_to_reversed_binary(hex_char: char) -> Vec<bool> {
+    let value = match hex_char {
+        '0'..='9' => hex_char as u8 - b'0',
+        'a'..='f' => hex_char as u8 - b'a' + 10,
+        'A'..='F' => hex_char as u8 - b'A' + 10,
+        _ => 0,
+    };
+    (0..4).map(|i| (value >> i) & 1 == 1).collect()
+}
+
+pub fn decode_capabilities(filename: &str) -> Vec<bool> {
+    let Ok(content) = std::fs::read_to_string(filename) else {
+        return Vec::new();
+    };
+
+    let mut binary_out = Vec::new();
+    let mut hex_count = 0;
+
+    // line has to be processed in reverse (why?)
+    for c in content.chars().rev().filter(|&c| c != '\n') {
+        if c == ' ' {
+            binary_out.extend(std::iter::repeat_n(false, 4 * (16 - hex_count)));
+            hex_count = 0;
+        } else if c.is_ascii_hexdigit() {
+            binary_out.extend(hex_to_reversed_binary(c));
+            hex_count += 1;
+        }
+    }
+
+    // pad final group if incomplete
+    if (1..16).contains(&hex_count) {
+        binary_out.extend(std::iter::repeat_n(false, 4 * (16 - hex_count)));
+    }
+
+    binary_out
 }

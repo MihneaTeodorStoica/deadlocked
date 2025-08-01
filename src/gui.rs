@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use egui::{Align, Align2, Button, Color32, Context, DragValue, Painter, Sense, Stroke, Ui, pos2};
 use egui_glow::glow;
 use glam::vec3;
