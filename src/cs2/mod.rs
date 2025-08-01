@@ -33,7 +33,7 @@ mod smoke;
 mod target;
 mod triggerbot;
 pub mod weapon;
-mod weapon_class;
+pub mod weapon_class;
 
 #[derive(Debug)]
 pub struct CS2 {

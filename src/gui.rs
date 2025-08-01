@@ -12,7 +12,7 @@ use crate::{
         delete_config, get_config_path, parse_config, write_config,
     },
     constants::cs2,
-    cs2::{bones::Bones, weapon::Weapon},
+    cs2::{bones::Bones, weapon::Weapon, weapon_class::WeaponClass},
     data::{Data, PlayerData},
     drag_range::DragRange,
     key_codes::KeyCode,
@@ -894,7 +894,9 @@ impl App {
             );
         }
 
-        if self.config.hud.sniper_crosshair {
+        if self.config.hud.sniper_crosshair
+            && WeaponClass::from_string(data.weapon.as_ref()) == WeaponClass::Sniper
+        {
             let stroke = Stroke::new(self.config.hud.line_width, Color32::WHITE);
             painter.line(
                 vec![
