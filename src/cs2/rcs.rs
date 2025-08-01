@@ -14,6 +14,10 @@ impl CS2 {
     pub fn rcs(&mut self, config: &Config, mouse: &mut Mouse) {
         let config = self.rcs_config(config);
 
+        if !config.enabled {
+            return;
+        }
+
         let Some(local_player) = Player::local_player(self) else {
             return;
         };

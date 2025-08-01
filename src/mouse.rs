@@ -46,10 +46,12 @@ impl InputEvent {
 }
 
 const EV_SYN: u16 = 0x00;
+const EV_KEY: u16 = 0x01;
 const EV_REL: u16 = 0x02;
 const SYN_REPORT: u16 = 0x00;
 const AXIS_X: u16 = 0x00;
 const AXIS_Y: u16 = 0x01;
+const BTN_LEFT: u16 = 0x110;
 
 pub struct Mouse {
     file: File,
@@ -152,6 +154,39 @@ impl Mouse {
         self.file.write_all(&syn.bytes()).unwrap();
 
         self.file.write_all(&y.bytes()).unwrap();
+        self.file.write_all(&syn.bytes()).unwrap();
+    }
+
+    pub fn left_press(&mut self) {
+        self.key(1);
+    }
+
+    pub fn left_release(&mut self) {
+        self.key(0);
+    }
+
+    fn key(&mut self, pressed: i32) {
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        let time = Timeval {
+            seconds: now.as_secs(),
+            microseconds: now.subsec_micros() as u64,
+        };
+
+        let press = InputEvent {
+            time,
+            event_type: EV_KEY,
+            code: BTN_LEFT,
+            value: pressed,
+        };
+
+        let syn = InputEvent {
+            time,
+            event_type: EV_SYN,
+            code: SYN_REPORT,
+            value: 0,
+        };
+
+        self.file.write_all(&press.bytes()).unwrap();
         self.file.write_all(&syn.bytes()).unwrap();
     }
 

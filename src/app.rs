@@ -1,9 +1,15 @@
-use std::sync::{Arc, Mutex, mpsc};
+use std::{
+    sync::{Arc, Mutex, mpsc},
+    time::{Duration, Instant},
+};
 
 use egui::{FontData, FontDefinitions, Stroke, Style};
 use egui_glow::glow;
 use log::info;
-use winit::{application::ApplicationHandler, event::WindowEvent};
+use winit::{
+    application::ApplicationHandler,
+    event::{StartCause, WindowEvent},
+};
 
 use crate::{
     color::Colors,
@@ -16,6 +22,9 @@ use crate::{
     window_context::WindowContext,
 };
 
+const FRAME_RATE: u64 = 120;
+const FRAME_DURATION: Duration = Duration::from_micros(1_000_000 / FRAME_RATE);
+
 pub struct App {
     pub gui_window: Option<WindowContext>,
     pub gui_gl: Option<Arc<glow::Context>>,
@@ -23,6 +32,7 @@ pub struct App {
     pub overlay_window: Option<WindowContext>,
     pub overlay_gl: Option<Arc<glow::Context>>,
     pub overlay_glow: Option<egui_glow::EguiGlow>,
+    pub next_frame_time: Instant,
 
     pub tx: mpsc::Sender<Message>,
     pub rx: mpsc::Receiver<Message>,
@@ -56,6 +66,7 @@ impl App {
             overlay_window: None,
             overlay_gl: None,
             overlay_glow: None,
+            next_frame_time: Instant::now() + FRAME_DURATION,
 
             tx,
             rx,
@@ -95,6 +106,27 @@ impl ApplicationHandler for App {
         self.overlay_window = Some(overlay_window);
         self.overlay_gl = Some(overlay_gl);
         self.overlay_glow = Some(overlay_glow);
+
+        self.next_frame_time = Instant::now() + FRAME_DURATION;
+        event_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(
+            self.next_frame_time,
+        ));
+    }
+
+    fn new_events(
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        cause: winit::event::StartCause,
+    ) {
+        if let StartCause::ResumeTimeReached { .. } = cause {
+            if let Some(window) = &self.gui_window {
+                window.window().request_redraw();
+            }
+            if let Some(window) = &self.overlay_window {
+                window.window().request_redraw();
+            }
+            self.next_frame_time += FRAME_DURATION;
+        }
     }
 
     fn window_event(
@@ -124,6 +156,9 @@ impl ApplicationHandler for App {
                 window.resize(new_size);
             }
             WindowEvent::RedrawRequested => {
+                event_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(
+                    self.next_frame_time,
+                ));
                 self.render();
             }
             WindowEvent::KeyboardInput { event, .. }
@@ -148,15 +183,6 @@ impl ApplicationHandler for App {
                         .request_redraw();
                 }
             }
-        }
-    }
-
-    fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
-        if let Some(window) = &self.gui_window {
-            window.window().request_redraw();
-        }
-        if let Some(window) = &self.overlay_window {
-            window.window().request_redraw();
         }
     }
 }

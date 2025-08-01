@@ -255,6 +255,12 @@ impl Player {
             > 0.2
     }
 
+    pub fn is_scoped(&self, cs2: &CS2) -> bool {
+        cs2.process
+            .read::<u8>(self.pawn + cs2.offsets.pawn.is_scoped)
+            != 0
+    }
+
     pub fn view_angles(&self, cs2: &CS2) -> Vec2 {
         cs2.process.read(self.pawn + cs2.offsets.pawn.view_angles)
     }
@@ -299,6 +305,25 @@ impl Player {
     pub fn has_bomb(&self, cs2: &CS2) -> bool {
         let weapons = self.all_weapons(cs2);
         weapons.contains(&Weapon::C4)
+    }
+
+    pub fn crosshair_entity(&self, cs2: &CS2) -> Option<Self> {
+        let index: i32 = cs2
+            .process
+            .read(self.pawn + cs2.offsets.pawn.crosshair_entity);
+        if index == -1 {
+            return None;
+        }
+
+        let entity = Player::get_client_entity(cs2, index as u64)?;
+        let player = Player {
+            controller: 0,
+            pawn: entity,
+        };
+        if !player.is_valid(cs2) {
+            return None;
+        }
+        Some(player)
     }
 
     #[allow(unused)]

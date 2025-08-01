@@ -66,16 +66,11 @@ impl CS2 {
 
         let sensitivity = self.get_sensitivity() * local_player.fov_multiplier(self);
 
-        let xy = vec2(
+        let mouse_angles = vec2(
             aim_angles.y / sensitivity * 50.0,
             -aim_angles.x / sensitivity * 50.0,
-        );
-        let smooth_angles = if !config.aim_lock && config.smooth > 0.0 {
-            xy / (config.smooth + 1.0)
-        } else {
-            xy
-        };
+        ) / (config.smooth + 1.0);
 
-        mouse.move_rel(&smooth_angles);
+        mouse.move_rel(&mouse_angles);
     }
 }

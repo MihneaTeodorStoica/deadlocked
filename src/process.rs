@@ -9,26 +9,67 @@ use bytemuck::{AnyBitPattern, NoUninit};
 use log::{debug, warn};
 use nix::libc::{self, iovec, process_vm_readv, process_vm_writev};
 
-use crate::constants::elf;
+use crate::constants::{cs2, elf};
 
 #[derive(Debug)]
 pub struct Process {
     pub pid: i32,
     file: File,
     path: PathBuf,
+    pub min: u64,
+    pub max: u64,
+    is_setup: bool,
 }
 
 impl Process {
     pub fn new(pid: i32) -> Self {
-        Self {
+        if pid == -1 {
+            return Self {
+                pid,
+                path: PathBuf::from(format!("/proc/{pid}")),
+                file: OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open("/dev/null")
+                    .unwrap(),
+                min: u64::MAX,
+                max: u64::MIN,
+                is_setup: false,
+            };
+        }
+
+        let mut ret = Self {
             pid,
             path: PathBuf::from(format!("/proc/{pid}")),
             file: OpenOptions::new()
                 .read(true)
                 .write(true)
                 .open(format!("/proc/{pid}/mem"))
-                .unwrap_or_else(|_| OpenOptions::new().write(true).open("/dev/null").unwrap()),
+                .unwrap(),
+            min: u64::MAX,
+            max: u64::MIN,
+            is_setup: false,
+        };
+
+        let libs: Vec<u64> = cs2::LIBS
+            .iter()
+            .filter_map(|&lib| ret.module_base_address(lib))
+            .collect();
+        let sizes: Vec<u64> = libs.iter().map(|lib| ret.module_size(*lib)).collect();
+
+        for (lib, size) in libs.into_iter().zip(sizes) {
+            let min = lib - 1_000_000;
+            let max = lib + size + 1_000_000;
+            if min < ret.min {
+                ret.min = min;
+            }
+            if max > ret.max {
+                ret.max = max;
+            }
         }
+
+        ret.is_setup = true;
+        ret
     }
 
     pub fn is_valid(&self) -> bool {
@@ -36,6 +77,9 @@ impl Process {
     }
 
     pub fn read<T: AnyBitPattern + Default>(&self, address: u64) -> T {
+        if (address < self.min || address > self.max) && self.is_setup {
+            debug!("tried to read at address 0x{address:x}");
+        }
         let mut buffer = vec![0u8; std::mem::size_of::<T>()];
 
         let local_iov = iovec {
@@ -57,6 +101,9 @@ impl Process {
     }
 
     pub fn write<T: NoUninit>(&self, address: u64, value: T) {
+        if (address < self.min || address > self.max) && self.is_setup {
+            debug!("tried to write at address 0x{address:x}");
+        }
         let mut buffer = bytemuck::bytes_of(&value).to_vec();
 
         let local_iov = iovec {
@@ -73,6 +120,9 @@ impl Process {
 
     pub fn read_string(&self, address: u64) -> String {
         let mut string = String::with_capacity(8);
+        if (address < self.min || address > self.max) && self.is_setup {
+            debug!("tried to read at address 0x{address:x}");
+        }
         let mut i = address;
         loop {
             let c = self.read::<u8>(i);
@@ -86,6 +136,9 @@ impl Process {
     }
 
     pub fn read_bytes(&self, address: u64, count: u64) -> Vec<u8> {
+        if (address < self.min || address > self.max) && self.is_setup {
+            debug!("tried to read at address 0x{address:x}");
+        }
         let mut buffer = vec![0u8; count as usize];
         self.file.read_at(&mut buffer, address).unwrap_or(0);
         buffer

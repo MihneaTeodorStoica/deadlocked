@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use glam::{IVec2, Mat4, Vec2, Vec3};
 use log::{debug, info, warn};
 use player::Player;
@@ -7,7 +9,10 @@ use crate::{
     aimbot::Aimbot,
     config::{AimbotConfig, Config, RcsConfig, TriggerbotConfig},
     constants::cs2,
-    cs2::{bones::Bones, offsets::Offsets, planted_c4::PlantedC4, target::Target, weapon::Weapon},
+    cs2::{
+        bones::Bones, offsets::Offsets, planted_c4::PlantedC4, target::Target,
+        triggerbot::Triggerbot, weapon::Weapon,
+    },
     data::{Data, PlayerData},
     key_codes::KeyCode,
     math::{angles_from_vector, vec2_clamp},
@@ -26,6 +31,7 @@ mod player;
 mod rcs;
 mod smoke;
 mod target;
+mod triggerbot;
 pub mod weapon;
 mod weapon_class;
 
@@ -37,6 +43,7 @@ pub struct CS2 {
     target: Target,
     players: Vec<Player>,
     recoil: Recoil,
+    trigger: Triggerbot,
     weapon: Weapon,
 }
 
@@ -78,6 +85,8 @@ impl Aimbot for CS2 {
         self.fov_changer(config);
 
         self.rcs(config, mouse);
+        self.triggerbot(config);
+        self.triggerbot_shoot(mouse);
 
         self.find_target();
 
@@ -147,6 +156,7 @@ impl CS2 {
             target: Target::default(),
             players: Vec::with_capacity(64),
             recoil: Recoil::default(),
+            trigger: Triggerbot::default(),
             weapon: Weapon::default(),
         }
     }
@@ -189,6 +199,7 @@ impl CS2 {
     }
 
     fn find_offsets(&self) -> Option<Offsets> {
+        let start = Instant::now();
         let mut offsets = Offsets::default();
 
         offsets.library.client = self.process.module_base_address(cs2::CLIENT_LIB)?;
@@ -353,7 +364,7 @@ impl CS2 {
 
         use offsets::Offset as _;
         if offsets.all_found() {
-            debug!("offsets: {:?}", offsets);
+            debug!("offsets: {:?} ({:?})", offsets, Instant::now() - start);
             return Some(offsets);
         }
 

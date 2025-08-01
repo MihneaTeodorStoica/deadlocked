@@ -7,6 +7,10 @@ pub mod cs2 {
     pub const SDL_LIB: &str = "libSDL3.so.0";
     pub const SCHEMA_LIB: &str = "libschemasystem.so";
 
+    pub const LIBS: [&str; 6] = [
+        CLIENT_LIB, ENGINE_LIB, TIER0_LIB, INPUT_LIB, SDL_LIB, SCHEMA_LIB,
+    ];
+
     pub const TEAM_T: u8 = 2;
     pub const TEAM_CT: u8 = 3;
 

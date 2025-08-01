@@ -64,18 +64,10 @@ impl WeaponConfig {
             enabled,
             ..Default::default()
         };
-        let rcs = RcsConfig {
-            enabled,
-            ..Default::default()
-        };
-        let triggerbot = TriggerbotConfig {
-            enabled,
-            ..Default::default()
-        };
         Self {
             aimbot,
-            rcs,
-            triggerbot,
+            rcs: RcsConfig::default(),
+            triggerbot: TriggerbotConfig::default(),
         }
     }
 }
@@ -84,7 +76,6 @@ impl WeaponConfig {
 pub struct AimbotConfig {
     pub enabled: bool,
     pub start_bullet: i32,
-    pub aim_lock: bool,
     pub visibility_check: bool,
     pub flash_check: bool,
     pub fov: f32,
@@ -97,7 +88,6 @@ impl Default for AimbotConfig {
         Self {
             enabled: false,
             start_bullet: 2,
-            aim_lock: false,
             visibility_check: true,
             flash_check: true,
             fov: 2.5,
@@ -126,11 +116,11 @@ impl Default for RcsConfig {
 pub struct TriggerbotConfig {
     pub enabled: bool,
     pub delay: RangeInclusive<u64>,
-    pub visibility_check: bool,
     pub flash_check: bool,
     pub scope_check: bool,
     pub velocity_check: bool,
     pub velocity_threshold: f32,
+    pub head_only: bool,
 }
 
 impl Default for TriggerbotConfig {
@@ -138,11 +128,11 @@ impl Default for TriggerbotConfig {
         Self {
             enabled: false,
             delay: 100..=200,
-            visibility_check: true,
             flash_check: true,
             scope_check: true,
             velocity_check: true,
             velocity_threshold: 100.0,
+            head_only: false,
         }
     }
 }
@@ -183,7 +173,7 @@ pub enum DrawMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayerConfig {
-    pub enable: bool,
+    pub enabled: bool,
     pub draw_box: DrawMode,
     pub box_color: Color32,
     pub draw_skeleton: DrawMode,
@@ -198,7 +188,7 @@ pub struct PlayerConfig {
 impl Default for PlayerConfig {
     fn default() -> Self {
         Self {
-            enable: true,
+            enabled: true,
             draw_box: DrawMode::Color,
             box_color: Colors::TEXT,
             draw_skeleton: DrawMode::Health,

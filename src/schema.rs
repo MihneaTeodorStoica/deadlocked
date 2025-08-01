@@ -70,7 +70,7 @@ impl ModuleScope {
         let mut current_blob: u64 = process.read(address + 0x560 + 0x20);
         while current_blob != 0 {
             let data: u64 = process.read(current_blob + 0x10);
-            if data != 0 {
+            if data > process.min && data < process.max {
                 let class = Class::new(process, data);
                 classes.insert(class.name.clone(), class);
             }
@@ -106,9 +106,12 @@ impl Class {
     fn new(process: &Process, address: u64) -> Self {
         let name = process.read_string(process.read(address + 0x08));
 
-        let field_count: i16 = process.read(address + 0x1C);
-        let fields_vec: u64 = process.read(address + 0x28);
         let mut fields = HashMap::new();
+        let field_count: i16 = process.read(address + 0x1C);
+        if field_count < 0 {
+            return Self { name, fields };
+        }
+        let fields_vec: u64 = process.read(address + 0x28);
         for i in 0..field_count as u64 {
             let field = Field::new(process, fields_vec + (0x20 * i));
             fields.insert(field.name, field.offset);
