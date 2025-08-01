@@ -8,7 +8,7 @@ use rcs::Recoil;
 use crate::{
     aimbot::Aimbot,
     config::{AimbotConfig, Config, RcsConfig, TriggerbotConfig},
-    constants::cs2,
+    constants::cs2::{self, TEAM_CT, TEAM_T},
     cs2::{
         bones::Bones, offsets::Offsets, planted_c4::PlantedC4, target::Target,
         triggerbot::Triggerbot, weapon::Weapon,
@@ -105,6 +105,11 @@ impl Aimbot for CS2 {
             return;
         };
         let local_team = local_player.team(self);
+        if local_team != TEAM_T && local_team != TEAM_CT {
+            data.weapon = Weapon::default();
+            data.in_game = false;
+            return;
+        }
         for player in &self.players {
             if player.team(self) == local_team {
                 continue;
