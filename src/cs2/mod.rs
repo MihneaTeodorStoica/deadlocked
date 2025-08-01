@@ -85,7 +85,9 @@ impl Aimbot for CS2 {
         self.fov_changer(config);
 
         self.rcs(config, mouse);
-        self.triggerbot(config);
+        if self.is_button_down(&config.aim.triggerbot_hotkey) {
+            self.triggerbot(config);
+        }
         self.triggerbot_shoot(mouse);
 
         self.find_target();
