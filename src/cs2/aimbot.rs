@@ -69,7 +69,7 @@ impl CS2 {
         let mouse_angles = vec2(
             aim_angles.y / sensitivity * 50.0,
             -aim_angles.x / sensitivity * 50.0,
-        ) / (config.smooth + 1.0);
+        ) / (config.smooth + 1.0).clamp(1.0, 10.0);
 
         mouse.move_rel(&mouse_angles);
     }
