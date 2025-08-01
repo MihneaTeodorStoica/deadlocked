@@ -883,7 +883,6 @@ impl App {
             let radius = (aim_fov.to_radians() / 2.0).tan() / (fov.to_radians() / 2.0).tan()
                 * data.window_size.x as f32
                 / 2.0;
-            dbg!(radius);
             painter.circle_stroke(
                 pos2(
                     data.window_size.x as f32 / 2.0,
