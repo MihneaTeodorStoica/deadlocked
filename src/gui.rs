@@ -847,7 +847,7 @@ impl App {
                 painter.text(
                     pos,
                     Align2::CENTER_CENTER,
-                    format!("{}", data.bomb.timer),
+                    format!("{:.1}", data.bomb.timer),
                     egui::FontId::proportional(self.config.hud.font_size),
                     self.config.hud.text_color,
                 );
