@@ -1,14 +1,9 @@
 # deadlocked
 
-![downloads](https://img.shields.io/github/downloads/avitran0/deadlocked/total?color=blue) [![foss cs2/deadlock hacking](https://badgen.net/discord/members/eXjG4Ar9Sx)](https://discord.gg/eXjG4Ar9Sx)
+![downloads](https://img.shields.io/github/downloads/avitran0/deadlocked/total?color=blue)
+[![foss cs2 hacking](https://badgen.net/discord/members/eXjG4Ar9Sx)](https://discord.gg/eXjG4Ar9Sx)
 
-> [!CAUTION]
-> vacnet 3.0 seems to be better at detecting aimbot and wallhacks, so **do not** use aim lock,
-> and play with a low fov to avoid bans. the default configuration should be a good starting point.
-
-simple cs2 aimbot, for linux only.
-
-if you want esp, try either the esp branch, and if that does not work the cpp branch.
+simple cs2 aimbot and esp, for linux only.
 
 ## features
 
@@ -19,32 +14,73 @@ if you want esp, try either the esp branch, and if that does not work the cpp br
   - visibility check
   - head only/whole body
   - flash check
-- rcs
+  - fov circle
+- esp
+  - box
+  - skeleton
+  - health bar
+  - armor bar
+  - player name
+  - weapon name
+  - player tags (helmet, defuser, bomb)
+  - dropped weapons
+  - bomb timer
 - triggerbot
-  - min and max delay in milliseconds
+  - min/max delay
+  - hotkey
+  - visibility check
   - flash check
+  - scope check
+  - velocity threshold
+- standalone rcs
+  - smoothing
+- misc
+  - sniper crosshair
 - unsafe
-  - glow
   - noflash
     - max flash alpha
   - fov changer
-- config saving/loading
 
 > [!WARNING]
 > the features in the unsafe tab are there for a reason.
 > do not use them unless you are fine with risking a ban.
 > they write to game memory.
 
+> [!CAUTION]
+> vacnet 3.0 seems to be better at detecting aimbot and wallhacks, so **do not** use aim lock,
+> and play with a low fov to avoid bans. use visuals sparingly.
+
 ## setup
 
-- add your user to the `input` group: `sudo usermod -aG input USERNAME` (replace USERNAME with your actual username)
+- add your user to the `input` group: `sudo usermod -aG input $(whoami)`
 - restart your machine (this will **_not_** work without a restart!)
+- clone the repository: `git clone --recursive https://github.com/avitran0/deadlocked`
+- install rust from `https://rustup.rs/`
 
 ## running
 
-- if you got the source code from github, run with cargo: `cargo run --release`
-- if you got a standalone binary, just run that
+`cargo run --release`
 
-## headless mode
+## faq
 
-if the gui has problems, you can run this in headless mode. it will watch the config file for changes and update on the fly. to run like this, use the flag `--headless`
+### what desktop environments and window managers are supported?
+
+it is tested on GNOME with Mutter, KDE with KWin, and SwayWM.
+support for other (especially tiling) window managers is not guaranteed.
+if in doubt, use either GNOME or KDE.
+
+### the overlay window/my screen is black
+
+your compositor or window manager does not support transparency, or it is not enabled.
+
+### the overlay shows up, but i cannot click on anything
+
+the window could not be made click-through, which might be because of window manager/compositor support.
+
+### the overlay does not show up
+
+you window manager does not support positioning or resizing the window.
+
+### the overlay is not on top of other windows
+
+your window manager does not support always on top windows.

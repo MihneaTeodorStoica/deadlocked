@@ -893,6 +893,36 @@ impl App {
                 Stroke::new(self.config.hud.line_width, Color32::WHITE),
             );
         }
+
+        if self.config.hud.sniper_crosshair {
+            let stroke = Stroke::new(self.config.hud.line_width, Color32::WHITE);
+            painter.line(
+                vec![
+                    pos2(
+                        data.window_size.x as f32 / 2.0,
+                        data.window_size.y as f32 / 2.0 - 50.0,
+                    ),
+                    pos2(
+                        data.window_size.x as f32 / 2.0,
+                        data.window_size.y as f32 / 2.0 + 50.0,
+                    ),
+                ],
+                stroke,
+            );
+            painter.line(
+                vec![
+                    pos2(
+                        data.window_size.x as f32 / 2.0 - 50.0,
+                        data.window_size.y as f32 / 2.0,
+                    ),
+                    pos2(
+                        data.window_size.x as f32 / 2.0 + 50.0,
+                        data.window_size.y as f32 / 2.0,
+                    ),
+                ],
+                stroke,
+            );
+        }
     }
 
     fn player_box(&self, painter: &Painter, player: &PlayerData, data: &Data) {
