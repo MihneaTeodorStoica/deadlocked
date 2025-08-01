@@ -547,7 +547,12 @@ impl App {
             ui.label("Font Size");
         });
 
-        ui.checkbox(&mut self.config.hud.debug, "Debug Overlay");
+        if ui
+            .checkbox(&mut self.config.hud.debug, "Debug Overlay")
+            .changed()
+        {
+            self.send_config();
+        }
     }
 
     fn unsafe_settings(&mut self, ui: &mut Ui) {

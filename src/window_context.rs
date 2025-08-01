@@ -26,6 +26,7 @@ impl WindowContext {
                 .with_resizable(true)
                 .with_transparent(true)
                 .with_window_level(winit::window::WindowLevel::AlwaysOnTop)
+                .with_override_redirect(true)
                 .with_x11_window_type(vec![WindowType::Tooltip])
                 .with_title("deadlocked")
         } else {
@@ -107,10 +108,7 @@ impl WindowContext {
         let gl_context = not_current_gl_context.make_current(&gl_surface).unwrap();
 
         gl_surface
-            .set_swap_interval(
-                &gl_context,
-                glutin::surface::SwapInterval::DontWait,
-            )
+            .set_swap_interval(&gl_context, glutin::surface::SwapInterval::DontWait)
             .unwrap();
 
         if overlay {
