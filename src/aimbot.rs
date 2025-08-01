@@ -7,7 +7,7 @@ use std::{
 use log::{debug, info};
 
 use crate::{
-    config::{AimbotStatus, Config, LOOP_DURATION, SLEEP_DURATION, parse_config},
+    config::{get_config_path, parse_config, AimbotStatus, Config, DEFAULT_CONFIG_NAME, LOOP_DURATION, SLEEP_DURATION},
     cs2::CS2,
     data::Data,
     message::Message,
@@ -38,7 +38,7 @@ impl AimbotManager {
     ) -> Self {
         let mouse = Mouse::open();
 
-        let config = parse_config();
+        let config = parse_config(&get_config_path().join(DEFAULT_CONFIG_NAME));
         let mut aimbot = Self {
             tx,
             rx,

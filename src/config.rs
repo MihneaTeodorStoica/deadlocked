@@ -1,9 +1,13 @@
 use std::{
-    collections::HashMap, fs::read_to_string, ops::RangeInclusive, path::Path, time::Duration,
+    collections::HashMap,
+    fs::read_to_string,
+    ops::RangeInclusive,
+    path::{Path, PathBuf},
+    time::Duration,
 };
 
 use egui::Color32;
-use log::warn;
+use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, IntoEnumIterator};
 
@@ -12,7 +16,7 @@ use crate::{color::Colors, cs2::weapon::Weapon, key_codes::KeyCode};
 const REFRESH_RATE: u64 = 100;
 pub const LOOP_DURATION: Duration = Duration::from_millis(1000 / REFRESH_RATE);
 pub const SLEEP_DURATION: Duration = Duration::from_secs(1);
-pub const CONFIG_FILE_NAME: &str = "config.toml";
+pub const DEFAULT_CONFIG_NAME: &str = "deadlocked.toml";
 pub const VERSION: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -246,34 +250,61 @@ impl Default for UnsafeConfig {
     }
 }
 
-pub fn get_config_path() -> String {
-    String::from(
-        std::env::current_exe()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join(CONFIG_FILE_NAME)
-            .to_str()
-            .unwrap(),
-    )
+pub fn get_config_path() -> PathBuf {
+    std::env::current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf()
 }
 
-pub fn parse_config() -> Config {
-    let config_path = get_config_path();
-    let path = Path::new(config_path.as_str());
+pub fn parse_config(path: &Path) -> Config {
     if !path.exists() {
         return Config::default();
     }
 
-    let config_string = read_to_string(get_config_path()).unwrap();
+    let config_string = read_to_string(path).unwrap();
     let config = toml::from_str(&config_string);
     if config.is_err() {
         warn!("config file invalid");
     }
+    info!("loaded config {:?}", path.file_name().unwrap());
     config.unwrap_or_default()
 }
 
-pub fn write_config(config: &Config) {
+pub fn write_config(config: &Config, path: &Path) {
     let out = toml::to_string(&config).unwrap();
-    std::fs::write(get_config_path(), out).unwrap();
+    std::fs::write(path, out).unwrap();
+}
+
+pub fn delete_config(path: &Path) {
+    if !path.exists() {
+        return;
+    }
+
+    std::fs::remove_file(path).unwrap();
+    info!("deleted config {:?}", path.file_name().unwrap());
+}
+
+pub fn available_configs() -> Vec<PathBuf> {
+    let dir = get_config_path();
+    let mut files = Vec::with_capacity(8);
+    for path in std::fs::read_dir(dir).unwrap() {
+        let Ok(file) = path else {
+            continue;
+        };
+        if !file.file_type().unwrap().is_file() {
+            continue;
+        }
+        if !file.file_name().to_str().unwrap().ends_with(".toml") {
+            continue;
+        }
+        files.push(file.path())
+    }
+    if files.is_empty() {
+        let path = get_config_path().join(DEFAULT_CONFIG_NAME);
+        write_config(&Config::default(), &path);
+        files.push(path);
+    }
+    files
 }

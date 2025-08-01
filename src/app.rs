@@ -1,4 +1,5 @@
 use std::{
+    path::PathBuf,
     sync::{Arc, Mutex, mpsc},
     time::{Duration, Instant},
 };
@@ -13,7 +14,10 @@ use winit::{
 
 use crate::{
     color::Colors,
-    config::{AimbotStatus, Config, parse_config, write_config},
+    config::{
+        AimbotStatus, Config, DEFAULT_CONFIG_NAME, available_configs, get_config_path,
+        parse_config, write_config,
+    },
     cs2::weapon::Weapon,
     data::Data,
     gui::{AimbotTab, Tab},
@@ -42,6 +46,10 @@ pub struct App {
     pub mouse_status: DeviceStatus,
 
     pub config: Config,
+    pub current_config: PathBuf,
+    pub available_configs: Vec<PathBuf>,
+    pub new_config_name: String,
+
     pub current_tab: Tab,
     pub aimbot_tab: AimbotTab,
     pub aimbot_weapon: Weapon,
@@ -54,9 +62,9 @@ impl App {
         data: Arc<Mutex<Data>>,
     ) -> Self {
         // read config
-        let config = parse_config();
+        let config = parse_config(&get_config_path().join(DEFAULT_CONFIG_NAME));
         // override config if invalid
-        write_config(&config);
+        write_config(&config, &get_config_path().join(DEFAULT_CONFIG_NAME));
 
         Self {
             gui_window: None,
@@ -72,6 +80,9 @@ impl App {
             rx,
             data,
             config,
+            current_config: get_config_path().join(DEFAULT_CONFIG_NAME),
+            available_configs: available_configs(),
+            new_config_name: String::new(),
 
             status: AimbotStatus::GameNotStarted,
             mouse_status: DeviceStatus::Disconnected,

@@ -1,4 +1,6 @@
-use egui::{Align, Align2, Color32, Context, DragValue, Painter, Sense, Stroke, Ui, pos2};
+use std::path::PathBuf;
+
+use egui::{Align, Align2, Button, Color32, Context, DragValue, Painter, Sense, Stroke, Ui, pos2};
 use egui_glow::glow;
 use glam::vec3;
 use log::info;
@@ -7,7 +9,10 @@ use strum::IntoEnumIterator;
 use crate::{
     app::App,
     color::Colors,
-    config::{AimbotConfig, AimbotStatus, Config, DrawMode, VERSION, WeaponConfig, write_config},
+    config::{
+        AimbotConfig, AimbotStatus, Config, DrawMode, VERSION, WeaponConfig, available_configs,
+        delete_config, get_config_path, parse_config, write_config,
+    },
     constants::cs2,
     cs2::{bones::Bones, weapon::Weapon},
     data::{Data, PlayerData},
@@ -36,7 +41,7 @@ pub enum AimbotTab {
 impl App {
     pub fn send_config(&self) {
         self.send_message(Message::Config(self.config.clone()));
-        write_config(&self.config);
+        write_config(&self.config, &self.current_config);
     }
 
     pub fn send_message(&self, message: Message) {
@@ -624,46 +629,113 @@ impl App {
     }
 
     fn config_settings(&mut self, ui: &mut Ui, ctx: &Context) {
-        egui::ScrollArea::vertical()
-            .id_salt("config")
-            .show(ui, |ui| {
-                ui.label("Config");
-                ui.separator();
+        ui.columns(2, |cols| {
+            let left = &mut cols[0];
+            egui::ScrollArea::vertical()
+                .id_salt("config_left")
+                .show(left, |left| {
+                    self.config_left(left, ctx);
+                });
 
-                if ui.button("Reset").clicked() {
+            let right = &mut cols[1];
+
+            right.label("Configs");
+            right.separator();
+
+            right.horizontal(|right| {
+                if right.button("+").clicked() && !self.new_config_name.is_empty() {
+                    if !self.new_config_name.ends_with(".toml") {
+                        self.new_config_name.push_str(".toml");
+                    }
                     self.config = Config::default();
-                    self.send_config();
-                    info!("loaded default config");
+                    let path = get_config_path().join(&self.new_config_name);
+                    write_config(&self.config, &path);
+                    self.new_config_name.clear();
+                    self.current_config = path;
+                    self.available_configs = available_configs();
                 }
-
-                self.section_title(ui, "Accent Color");
-
-                egui::ComboBox::new("accent_color", "Accent Color")
-                    .selected_text(
-                        Colors::ACCENT_COLORS
-                            .iter()
-                            .find(|c| c.1 == self.config.accent_color)
-                            .unwrap_or(&Colors::ACCENT_COLORS[5])
-                            .0,
-                    )
-                    .show_ui(ui, |ui| {
-                        for (name, color) in Colors::ACCENT_COLORS {
-                            if ui
-                                .add(
-                                    egui::Button::selectable(
-                                        color == self.config.accent_color,
-                                        name,
-                                    )
-                                    .fill(color),
-                                )
-                                .clicked()
-                            {
-                                self.config.accent_color = color;
-                                ctx.style_mut(|style| style.visuals.selection.bg_fill = color);
-                            }
-                        }
-                    });
+                right.text_edit_singleline(&mut self.new_config_name);
             });
+
+            egui::ScrollArea::vertical()
+                .id_salt("config_right")
+                .show(right, |right| {
+                    self.config_right(right);
+                });
+        });
+    }
+
+    fn config_left(&mut self, ui: &mut Ui, ctx: &Context) {
+        ui.label("Config");
+        ui.separator();
+
+        if ui.button("Reset").clicked() {
+            self.config = Config::default();
+            self.send_config();
+            info!("loaded default config");
+        }
+
+        self.section_title(ui, "Accent Color");
+
+        egui::ComboBox::new("accent_color", "Accent Color")
+            .selected_text(
+                Colors::ACCENT_COLORS
+                    .iter()
+                    .find(|c| c.1 == self.config.accent_color)
+                    .unwrap_or(&Colors::ACCENT_COLORS[5])
+                    .0,
+            )
+            .show_ui(ui, |ui| {
+                for (name, color) in Colors::ACCENT_COLORS {
+                    if ui
+                        .add(
+                            egui::Button::selectable(color == self.config.accent_color, name)
+                                .fill(color),
+                        )
+                        .clicked()
+                    {
+                        self.config.accent_color = color;
+                        ctx.style_mut(|style| style.visuals.selection.bg_fill = color);
+                    }
+                }
+            });
+    }
+
+    fn config_right(&mut self, ui: &mut Ui) {
+        let mut clicked_config = None;
+        let mut delete = None;
+
+        for config in &self.available_configs {
+            ui.horizontal(|ui| {
+                if ui
+                    .add(Button::selectable(
+                        *config == self.current_config,
+                        config.file_name().unwrap().to_str().unwrap(),
+                    ))
+                    .clicked()
+                {
+                    clicked_config = Some(config.clone());
+                }
+                ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
+                    if ui.button("\u{f0a7a}").clicked() {
+                        delete = Some(config.clone());
+                    }
+                });
+            });
+        }
+
+        if let Some(config_path) = clicked_config {
+            self.config = parse_config(&config_path);
+            self.current_config = config_path;
+            self.send_config();
+        }
+
+        if let Some(config) = delete {
+            delete_config(&config);
+            self.available_configs = available_configs();
+            self.current_config = self.available_configs[0].clone();
+            self.config = parse_config(&self.current_config);
+        }
     }
 
     fn add_game_status(&self, ui: &mut Ui) {
