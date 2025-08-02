@@ -129,7 +129,6 @@ impl Process {
             return cached;
         }
         let string = self.read_string_uncached(address);
-        dbg!("cache miss", &string);
         STRING_CACHE.with(|c| c.borrow_mut().insert(address, string.clone()));
         string
     }
