@@ -10,7 +10,7 @@ use crate::{
     app::App,
     color::Colors,
     config::{
-        AimbotConfig, AimbotStatus, Config, DrawMode, VERSION, WeaponConfig, available_configs,
+        AimbotConfig, Config, DrawMode, GameStatus, VERSION, WeaponConfig, available_configs,
         delete_config, get_config_path, parse_config, write_config,
     },
     constants::cs2,
@@ -773,8 +773,8 @@ impl App {
                 egui::RichText::new(self.status.string())
                     .line_height(Some(8.0))
                     .color(match self.status {
-                        AimbotStatus::Working => Colors::GREEN,
-                        AimbotStatus::GameNotStarted => Colors::YELLOW,
+                        GameStatus::Working => Colors::GREEN,
+                        GameStatus::GameNotStarted => Colors::YELLOW,
                     }),
             );
 

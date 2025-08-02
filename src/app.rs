@@ -15,7 +15,7 @@ use winit::{
 use crate::{
     color::Colors,
     config::{
-        AimbotStatus, Config, DEFAULT_CONFIG_NAME, available_configs, get_config_path,
+        GameStatus, Config, DEFAULT_CONFIG_NAME, available_configs, get_config_path,
         parse_config, write_config,
     },
     cs2::weapon::Weapon,
@@ -42,7 +42,7 @@ pub struct App {
     pub rx: mpsc::Receiver<Message>,
     pub data: Arc<Mutex<Data>>,
 
-    pub status: AimbotStatus,
+    pub status: GameStatus,
     pub mouse_status: DeviceStatus,
 
     pub config: Config,
@@ -84,7 +84,7 @@ impl App {
             available_configs: available_configs(),
             new_config_name: String::new(),
 
-            status: AimbotStatus::GameNotStarted,
+            status: GameStatus::GameNotStarted,
             mouse_status: DeviceStatus::Disconnected,
             current_tab: Tab::Aimbot,
             aimbot_tab: AimbotTab::Global,

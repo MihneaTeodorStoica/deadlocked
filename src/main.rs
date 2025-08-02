@@ -7,7 +7,6 @@ use log::{error, info};
 
 use crate::{app::App, data::Data};
 
-mod aimbot;
 mod app;
 mod color;
 mod config;
@@ -15,6 +14,7 @@ mod constants;
 mod cs2;
 mod data;
 mod drag_range;
+mod game;
 mod gui;
 mod key_codes;
 mod math;
@@ -54,7 +54,7 @@ fn main() {
     let data_aimbot = data.clone();
 
     std::thread::spawn(move || {
-        aimbot::AimbotManager::new(tx_aimbot, rx_aimbot, data_aimbot).run();
+        game::GameManager::new(tx_aimbot, rx_aimbot, data_aimbot).run();
     });
     info!("started game thread");
 

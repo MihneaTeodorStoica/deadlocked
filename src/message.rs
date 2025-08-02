@@ -1,11 +1,11 @@
 use crate::{
-    config::{AimbotStatus, Config},
+    config::{GameStatus, Config},
     mouse::DeviceStatus,
 };
 
 #[derive(Clone, Debug)]
 pub enum Message {
     Config(Config),
-    Status(AimbotStatus),
+    Status(GameStatus),
     MouseStatus(DeviceStatus),
 }

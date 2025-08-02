@@ -7,21 +7,24 @@ use std::{
 use log::{debug, info};
 
 use crate::{
-    config::{get_config_path, parse_config, AimbotStatus, Config, DEFAULT_CONFIG_NAME, LOOP_DURATION, SLEEP_DURATION},
+    config::{
+        GameStatus, Config, DEFAULT_CONFIG_NAME, LOOP_DURATION, SLEEP_DURATION, get_config_path,
+        parse_config,
+    },
     cs2::CS2,
     data::Data,
     message::Message,
     mouse::{DeviceStatus, Mouse},
 };
 
-pub trait Aimbot: std::fmt::Debug {
+pub trait Game: std::fmt::Debug {
     fn is_valid(&self) -> bool;
     fn setup(&mut self);
     fn run(&mut self, config: &Config, mouse: &mut Mouse);
     fn data(&self, data: &mut Data);
 }
 
-pub struct AimbotManager {
+pub struct GameManager {
     tx: mpsc::Sender<Message>,
     rx: mpsc::Receiver<Message>,
     data: Arc<Mutex<Data>>,
@@ -30,7 +33,7 @@ pub struct AimbotManager {
     aimbot: CS2,
 }
 
-impl AimbotManager {
+impl GameManager {
     pub fn new(
         tx: mpsc::Sender<Message>,
         rx: mpsc::Receiver<Message>,
@@ -60,8 +63,8 @@ impl AimbotManager {
     }
 
     pub fn run(&mut self) {
-        self.send_message(Message::Status(AimbotStatus::GameNotStarted));
-        let mut previous_status = AimbotStatus::GameNotStarted;
+        self.send_message(Message::Status(GameStatus::GameNotStarted));
+        let mut previous_status = GameStatus::GameNotStarted;
         loop {
             let start = Instant::now();
             while let Ok(message) = self.rx.try_recv() {
@@ -74,17 +77,17 @@ impl AimbotManager {
             }
 
             if !self.aimbot.is_valid() {
-                if previous_status == AimbotStatus::Working {
-                    self.send_message(Message::Status(AimbotStatus::GameNotStarted));
-                    previous_status = AimbotStatus::GameNotStarted;
+                if previous_status == GameStatus::Working {
+                    self.send_message(Message::Status(GameStatus::GameNotStarted));
+                    previous_status = GameStatus::GameNotStarted;
                 }
                 self.aimbot.setup();
             }
 
             if mouse_valid && self.aimbot.is_valid() {
-                if previous_status == AimbotStatus::GameNotStarted {
-                    self.send_message(Message::Status(AimbotStatus::Working));
-                    previous_status = AimbotStatus::Working;
+                if previous_status == GameStatus::GameNotStarted {
+                    self.send_message(Message::Status(GameStatus::Working));
+                    previous_status = GameStatus::Working;
                 }
                 self.aimbot.run(&self.config, &mut self.mouse);
                 let mut data = self.data.lock().unwrap();

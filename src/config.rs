@@ -20,16 +20,16 @@ pub const DEFAULT_CONFIG_NAME: &str = "deadlocked.toml";
 pub const VERSION: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum AimbotStatus {
+pub enum GameStatus {
     Working,
     GameNotStarted,
 }
 
-impl AimbotStatus {
+impl GameStatus {
     pub fn string(&self) -> &str {
         match self {
-            AimbotStatus::Working => "Working",
-            AimbotStatus::GameNotStarted => "Game Not Started",
+            GameStatus::Working => "Working",
+            GameStatus::GameNotStarted => "Game Not Started",
         }
     }
 }

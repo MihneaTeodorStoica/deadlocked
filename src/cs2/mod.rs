@@ -6,7 +6,6 @@ use player::Player;
 use rcs::Recoil;
 
 use crate::{
-    aimbot::Aimbot,
     config::{AimbotConfig, Config, RcsConfig, TriggerbotConfig},
     constants::cs2::{self, TEAM_CT, TEAM_T},
     cs2::{
@@ -14,6 +13,7 @@ use crate::{
         triggerbot::Triggerbot, weapon::Weapon,
     },
     data::{Data, PlayerData},
+    game::Game,
     key_codes::KeyCode,
     math::{angles_from_vector, vec2_clamp},
     mouse::Mouse,
@@ -48,7 +48,7 @@ pub struct CS2 {
     weapon: Weapon,
 }
 
-impl Aimbot for CS2 {
+impl Game for CS2 {
     fn is_valid(&self) -> bool {
         self.is_valid && self.process.is_valid()
     }
