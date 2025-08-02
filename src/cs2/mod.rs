@@ -24,7 +24,7 @@ use crate::{
 mod aimbot;
 pub mod bones;
 mod fov_changer;
-mod noflash;
+mod no_flash;
 mod offsets;
 mod planted_c4;
 mod player;

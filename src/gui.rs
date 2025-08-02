@@ -880,7 +880,7 @@ impl App {
                     Align2::CENTER_CENTER,
                     weapon.0.as_ref(),
                     font.clone(),
-                    Colors::TEXT,
+                    self.config.hud.text_color,
                 );
             }
         }

@@ -9,8 +9,7 @@ simple cs2 aimbot and esp, for linux only.
 
 - aimbot
   - fov
-  - smoothing (with jitter)
-  - aim lock
+  - smoothing
   - visibility check
   - head only/whole body
   - flash check
@@ -27,19 +26,22 @@ simple cs2 aimbot and esp, for linux only.
   - bomb timer
 - triggerbot
   - min/max delay
-  - hotkey
   - visibility check
   - flash check
   - scope check
   - velocity threshold
+  - head only mode
 - standalone rcs
   - smoothing
+- aimbot, triggerbot and rcs per-weapon overrides
 - misc
   - sniper crosshair
 - unsafe
-  - noflash
+  - no flash
     - max flash alpha
   - fov changer
+  - no smoke
+  - smoke color change
 
 > [!WARNING]
 > the features in the unsafe tab are there for a reason.
