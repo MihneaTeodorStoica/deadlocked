@@ -1,29 +1,45 @@
+use std::sync::{Arc, Mutex};
+
 use glam::{Vec2, Vec3};
 use mlua::{FromLua, Lua, MetaMethod, UserData, Value};
+
+use crate::{cs2::player::Player, data::Data};
 
 #[allow(unused)]
 pub struct Script {
     lua: Lua,
+    data: Arc<Mutex<Data>>,
 }
 
 #[allow(unused)]
 impl Script {
-    pub fn new() -> Self {
+    pub fn new(data: Arc<Mutex<Data>>) -> Self {
         let lua = Lua::new();
-        Script::init(&lua).unwrap();
-        Self { lua }
+        let ret = Self { lua, data };
+        ret.init();
+        ret
     }
 
-    fn init(lua: &Lua) -> mlua::Result<()> {
-        let globals = lua.globals();
+    fn init(&self) -> mlua::Result<()> {
+        let globals = self.lua.globals();
 
         globals.set(
             "vec2",
-            lua.create_function(|_, (x, y)| Ok(LuaVec2(Vec2 { x, y })))?,
+            self.lua
+                .create_function(|_, (x, y)| Ok(LuaVec2(Vec2 { x, y })))?,
         )?;
         globals.set(
             "vec3",
-            lua.create_function(|_lua, (x, y, z)| Ok(LuaVec3(Vec3 { x, y, z })))?,
+            self.lua
+                .create_function(|_lua, (x, y, z)| Ok(LuaVec3(Vec3 { x, y, z })))?,
+        )?;
+
+        let ws_data = self.data.clone();
+        globals.set(
+            "window_size",
+            self.lua.create_function(move |_lua, ()| {
+                Ok(LuaVec2(ws_data.lock().unwrap().window_size.as_vec2()))
+            })?,
         )?;
 
         Ok(())
@@ -34,6 +50,8 @@ impl Script {
 struct LuaVec2(Vec2);
 #[derive(Debug, Clone, Copy)]
 struct LuaVec3(Vec3);
+#[derive(Debug, Clone, Copy)]
+struct LuaPlayer(Player);
 
 impl FromLua for LuaVec2 {
     fn from_lua(value: mlua::Value, _lua: &Lua) -> mlua::Result<Self> {
@@ -45,6 +63,15 @@ impl FromLua for LuaVec2 {
 }
 
 impl FromLua for LuaVec3 {
+    fn from_lua(value: mlua::Value, _lua: &Lua) -> mlua::Result<Self> {
+        match value {
+            Value::UserData(ud) => Ok(*ud.borrow::<Self>()?),
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl FromLua for LuaPlayer {
     fn from_lua(value: mlua::Value, _lua: &Lua) -> mlua::Result<Self> {
         match value {
             Value::UserData(ud) => Ok(*ud.borrow::<Self>()?),
@@ -176,4 +203,8 @@ impl UserData for LuaVec3 {
             Ok(format!("Vec2({}, {})", this.0.x, this.0.y))
         });
     }
+}
+
+impl UserData for LuaPlayer {
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {}
 }

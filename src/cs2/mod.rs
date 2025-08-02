@@ -27,7 +27,7 @@ mod fov_changer;
 mod no_flash;
 mod offsets;
 mod planted_c4;
-mod player;
+pub mod player;
 mod rcs;
 mod smoke;
 mod target;
@@ -125,7 +125,7 @@ impl Aimbot for CS2 {
             return;
         }
         for player in &self.players {
-            if player.team(self) == local_team {
+            if !self.is_ffa() && player.team(self) == local_team {
                 continue;
             }
             let player_data = PlayerData {
