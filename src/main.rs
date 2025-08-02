@@ -22,6 +22,7 @@ mod message;
 mod mouse;
 mod process;
 mod schema;
+mod script;
 mod window_context;
 
 #[cfg(not(target_os = "linux"))]

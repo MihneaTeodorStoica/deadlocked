@@ -332,9 +332,10 @@ impl App {
 
         ui.horizontal(|ui| {
             if ui
-                .add(DragValue::new(
-                    &mut self.weapon_config().triggerbot.velocity_threshold,
-                ))
+                .add(
+                    DragValue::new(&mut self.weapon_config().triggerbot.velocity_threshold)
+                        .range(0..=5000),
+                )
                 .changed()
             {
                 self.send_config();
