@@ -69,6 +69,11 @@ it is tested on GNOME with Mutter, KDE with KWin, and SwayWM.
 support for other (especially tiling) window managers is not guaranteed.
 if in doubt, use either GNOME or KDE.
 
+### i'm using hyprland and something does not work
+
+too bad, hyprland has bad support for the x11 shenanigans this cheat tries to do.
+this is nothing i can fix, and i doubt hyprland will improve its x11 support.
+
 ### the overlay window/my screen is black
 
 your compositor or window manager does not support transparency, or it is not enabled.
