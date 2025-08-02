@@ -248,7 +248,7 @@ impl Default for UnsafeConfig {
     fn default() -> Self {
         Self {
             no_flash: false,
-            max_flash_alpha: 0.5,
+            max_flash_alpha: 127.0,
             fov_changer: false,
             desired_fov: 90,
             no_smoke: false,

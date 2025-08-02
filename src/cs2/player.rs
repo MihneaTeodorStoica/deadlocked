@@ -339,12 +339,9 @@ impl Player {
     }
 
     pub fn no_flash(&self, cs2: &CS2, flash_alpha: f32) {
-        let flash_alpha = flash_alpha.clamp(0.0, 1.0);
-        if cs2
-            .process
-            .read::<f32>(self.pawn + cs2.offsets.pawn.flash_alpha)
-            != flash_alpha
-        {
+        let flash_alpha = flash_alpha.clamp(0.0, 255.0);
+        let current_alpha: f32 = cs2.process.read(self.pawn + cs2.offsets.pawn.flash_alpha);
+        if current_alpha != flash_alpha {
             cs2.process
                 .write(self.pawn + cs2.offsets.pawn.flash_alpha, flash_alpha);
         }

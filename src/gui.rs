@@ -615,9 +615,8 @@ impl App {
             if ui
                 .add(
                     DragValue::new(&mut self.config.misc.max_flash_alpha)
-                        .range(0.0..=1.0)
-                        .speed(0.002)
-                        .max_decimals(2),
+                        .range(0.0..=255.0)
+                        .speed(0.5),
                 )
                 .changed()
             {
