@@ -1,4 +1,6 @@
-use egui::{Align, Align2, Button, Color32, Context, DragValue, Painter, Sense, Stroke, Ui, pos2};
+use egui::{
+    Align, Align2, Button, Color32, Context, DragValue, FontId, Painter, Sense, Stroke, Ui, pos2,
+};
 use egui_glow::glow;
 use glam::vec3;
 use log::info;
@@ -571,6 +573,30 @@ impl App {
                     self.unsafe_right(right);
                 });
         });
+
+        self.section_title(ui, "Smokes");
+
+        if ui
+            .checkbox(&mut self.config.misc.no_smoke, "No Smoke")
+            .changed()
+        {
+            self.send_config();
+        }
+
+        if ui
+            .checkbox(
+                &mut self.config.misc.change_smoke_color,
+                "Change Smoke Color",
+            )
+            .changed()
+        {
+            self.send_config();
+        }
+
+        if let Some(color) = self.color_picker(ui, &self.config.misc.smoke_color, "Smoke Color") {
+            self.config.misc.smoke_color = color;
+            self.send_config();
+        }
     }
 
     fn unsafe_left(&mut self, ui: &mut Ui) {
@@ -801,6 +827,8 @@ impl App {
     fn overlay(&self, ctx: &Context) {
         ctx.set_pixels_per_point(1.0);
         let painter = ctx.debug_painter();
+        let font = FontId::proportional(self.config.hud.font_size);
+        let text_stroke = Stroke::new(self.config.hud.line_width, Colors::TEXT);
 
         let data = &self.data.lock().unwrap();
         if let Some(overlay) = &self.overlay_window {
@@ -824,14 +852,14 @@ impl App {
                     pos2(0.0, 0.0),
                     pos2(data.window_size.x as f32, data.window_size.y as f32),
                 ],
-                egui::Stroke::new(self.config.hud.line_width, Colors::TEXT),
+                text_stroke,
             );
             painter.line(
                 vec![
                     pos2(data.window_size.x as f32, 0.0),
                     pos2(0.0, data.window_size.y as f32),
                 ],
-                egui::Stroke::new(self.config.hud.line_width, Colors::TEXT),
+                text_stroke,
             );
         }
 
@@ -842,13 +870,28 @@ impl App {
             }
         }
 
+        if self.config.hud.dropped_weapons {
+            for weapon in &data.weapons {
+                let Some(pos) = world_to_screen(&weapon.1, data) else {
+                    continue;
+                };
+                painter.text(
+                    pos,
+                    Align2::CENTER_CENTER,
+                    weapon.0.as_ref(),
+                    font.clone(),
+                    Colors::TEXT,
+                );
+            }
+        }
+
         if self.config.hud.bomb_timer && data.bomb.planted {
             if let Some(pos) = world_to_screen(&data.bomb.position, data) {
                 painter.text(
                     pos,
                     Align2::CENTER_CENTER,
                     format!("{:.1}", data.bomb.timer),
-                    egui::FontId::proportional(self.config.hud.font_size),
+                    font.clone(),
                     self.config.hud.text_color,
                 );
                 if data.bomb.being_defused {
@@ -856,7 +899,7 @@ impl App {
                         pos2(pos.x, pos.y + self.config.hud.font_size),
                         Align2::CENTER_CENTER,
                         "defusing",
-                        egui::FontId::proportional(self.config.hud.font_size),
+                        font,
                         self.config.hud.text_color,
                     );
                 }
@@ -901,7 +944,6 @@ impl App {
         if self.config.hud.sniper_crosshair
             && WeaponClass::from_string(data.weapon.as_ref()) == WeaponClass::Sniper
         {
-            let stroke = Stroke::new(self.config.hud.line_width, Color32::WHITE);
             painter.line(
                 vec![
                     pos2(
@@ -913,7 +955,7 @@ impl App {
                         data.window_size.y as f32 / 2.0 + 50.0,
                     ),
                 ],
-                stroke,
+                text_stroke,
             );
             painter.line(
                 vec![
@@ -926,7 +968,7 @@ impl App {
                         data.window_size.y as f32 / 2.0,
                     ),
                 ],
-                stroke,
+                text_stroke,
             );
         }
     }

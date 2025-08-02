@@ -16,6 +16,13 @@ pub struct Player {
 }
 
 impl Player {
+    pub fn entity(entity: u64) -> Self {
+        Self {
+            controller: 0,
+            pawn: entity,
+        }
+    }
+
     pub fn index(cs2: &CS2, index: u64) -> Option<Self> {
         let controller = Self::get_client_entity(cs2, index)?;
         Self::get_pawn(cs2, controller).map(|pawn| Self { controller, pawn })
@@ -96,7 +103,7 @@ impl Player {
 
     pub fn name(&self, cs2: &CS2) -> String {
         cs2.process
-            .read_string(self.controller + cs2.offsets.controller.name)
+            .read_string_uncached(self.controller + cs2.offsets.controller.name)
     }
 
     pub fn weapon_name(&self, cs2: &CS2) -> String {

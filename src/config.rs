@@ -211,6 +211,7 @@ pub struct HudConfig {
     pub bomb_timer: bool,
     pub fov_circle: bool,
     pub sniper_crosshair: bool,
+    pub dropped_weapons: bool,
     pub text_color: Color32,
     pub line_width: f32,
     pub font_size: f32,
@@ -223,6 +224,7 @@ impl Default for HudConfig {
             bomb_timer: true,
             fov_circle: false,
             sniper_crosshair: true,
+            dropped_weapons: true,
             text_color: Colors::TEXT,
             line_width: 2.0,
             font_size: 16.0,
@@ -237,6 +239,9 @@ pub struct UnsafeConfig {
     pub max_flash_alpha: f32,
     pub fov_changer: bool,
     pub desired_fov: u32,
+    pub no_smoke: bool,
+    pub change_smoke_color: bool,
+    pub smoke_color: Color32,
 }
 
 impl Default for UnsafeConfig {
@@ -246,6 +251,9 @@ impl Default for UnsafeConfig {
             max_flash_alpha: 0.5,
             fov_changer: false,
             desired_fov: 90,
+            no_smoke: false,
+            change_smoke_color: false,
+            smoke_color: Color32::RED,
         }
     }
 }

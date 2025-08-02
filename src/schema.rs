@@ -47,7 +47,7 @@ pub struct ModuleScope {
 
 impl ModuleScope {
     fn new(process: &Process, address: u64) -> Self {
-        let name = process.read_string(address + 0x08);
+        let name = process.read_string_uncached(address + 0x08);
 
         let mut classes = HashMap::new();
         // length is (probably?) 256
@@ -104,7 +104,7 @@ pub struct Class {
 
 impl Class {
     fn new(process: &Process, address: u64) -> Self {
-        let name = process.read_string(process.read(address + 0x08));
+        let name = process.read_string_uncached(process.read(address + 0x08));
 
         let mut fields = HashMap::new();
         let field_count: i16 = process.read(address + 0x1C);
@@ -131,7 +131,7 @@ struct Field {
 
 impl Field {
     fn new(process: &Process, address: u64) -> Self {
-        let name = process.read_string(process.read(address));
+        let name = process.read_string_uncached(process.read(address));
         let offset = process.read::<i32>(address + 0x10) as u64;
 
         Self { name, offset }

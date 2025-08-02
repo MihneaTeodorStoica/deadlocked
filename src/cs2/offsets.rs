@@ -39,14 +39,15 @@ pub struct ConvarOffsets {
 
 #[derive(Debug, Default)]
 pub struct PlayerControllerOffsets {
-    pub name: u64,        // Pointer -> String (m_iszPlayerName)
-    pub pawn: u64,        // Pointer -> Pawn (m_hPawn)
-    pub desired_fov: u64, // u32 (m_iDesiredFOV)
+    pub name: u64,         // Pointer -> String (m_iszPlayerName)
+    pub pawn: u64,         // Pointer -> Pawn (m_hPawn)
+    pub desired_fov: u64,  // u32 (m_iDesiredFOV)
+    pub owner_entity: u64, // i32 (h_pOwnerEntity)
 }
 
 impl Offset for PlayerControllerOffsets {
     fn all_found(&self) -> bool {
-        self.name != 0 && self.pawn != 0 && self.desired_fov != 0
+        self.name != 0 && self.pawn != 0 && self.desired_fov != 0 && self.owner_entity != 0
     }
 }
 

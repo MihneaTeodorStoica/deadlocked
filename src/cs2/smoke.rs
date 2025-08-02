@@ -1,6 +1,6 @@
 use egui::{Color32, Rgba};
 
-use crate::cs2::{CS2, player::Player};
+use crate::cs2::CS2;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Smoke {
@@ -8,9 +8,8 @@ pub struct Smoke {
 }
 
 impl Smoke {
-    pub fn index(cs2: &CS2, index: u64) -> Option<Self> {
-        let controller = Player::get_client_entity(cs2, index)?;
-        Some(Self { controller })
+    pub fn new(controller: u64) -> Self {
+        Self { controller }
     }
 
     pub fn disable(&self, cs2: &CS2) {

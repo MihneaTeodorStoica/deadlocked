@@ -10,6 +10,8 @@ pub enum Weapon {
     #[default]
     Unknown,
 
+    Knife,
+
     // Pistols
     Cz75A,
     Deagle,
@@ -67,6 +69,31 @@ impl Weapon {
     pub fn from_str(name: &str) -> Self {
         use Weapon::*;
         match name {
+            "bayonet" => Knife,
+            "knife" => Knife,
+            "knife_bowie" => Knife,
+            "knife_butterfly" => Knife,
+            "knife_canis" => Knife,
+            "knife_cord" => Knife,
+            "knife_css" => Knife,
+            "knife_falchion" => Knife,
+            "knife_flip" => Knife,
+            "knife_gut" => Knife,
+            "knife_gypsy_jackknife" => Knife,
+            "knife_karambit" => Knife,
+            "knife_kukri" => Knife,
+            "knife_m9_bayonet" => Knife,
+            "knife_outdoor" => Knife,
+            "knife_push" => Knife,
+            "knife_skeleton" => Knife,
+            "knife_stiletto" => Knife,
+            "knife_survival_bowie" => Knife,
+            "knife_t" => Knife,
+            "knife_tactical" => Knife,
+            "knife_twinblade" => Knife,
+            "knife_ursus" => Knife,
+            "knife_widowmaker" => Knife,
+
             "cz75a" => Cz75A,
             "deagle" => Deagle,
             "elite" => DualBerettas,

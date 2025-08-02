@@ -10,7 +10,7 @@ use crate::{
     config::{AimbotConfig, Config, RcsConfig, TriggerbotConfig},
     constants::cs2::{self, TEAM_CT, TEAM_T},
     cs2::{
-        bones::Bones, offsets::Offsets, planted_c4::PlantedC4, target::Target,
+        bones::Bones, offsets::Offsets, planted_c4::PlantedC4, smoke::Smoke, target::Target,
         triggerbot::Triggerbot, weapon::Weapon,
     },
     data::{Data, PlayerData},
@@ -42,6 +42,7 @@ pub struct CS2 {
     offsets: Offsets,
     target: Target,
     players: Vec<Player>,
+    entities: Vec<Entity>,
     recoil: Recoil,
     trigger: Triggerbot,
     weapon: Weapon,
@@ -80,6 +81,19 @@ impl Aimbot for CS2 {
         }
 
         self.cache_players();
+        self.cache_entities();
+
+        for entity in &self.entities {
+            if let Entity::Smoke(smoke) = entity {
+                if config.misc.no_smoke {
+                    smoke.disable(self);
+                }
+
+                if config.misc.change_smoke_color {
+                    smoke.color(self, &config.misc.smoke_color);
+                }
+            }
+        }
 
         self.no_flash(config);
         self.fov_changer(config);
@@ -129,6 +143,13 @@ impl Aimbot for CS2 {
             data.players.push(player_data);
         }
 
+        data.weapons.clear();
+        for entity in &self.entities {
+            if let Entity::Weapon(weapon, position) = entity {
+                data.weapons.push((weapon.clone(), *position));
+            }
+        }
+
         data.weapon = local_player.weapon(self);
         data.in_game = true;
         data.is_ffa = self.is_ffa();
@@ -162,6 +183,7 @@ impl CS2 {
             offsets: Offsets::default(),
             target: Target::default(),
             players: Vec::with_capacity(64),
+            entities: Vec::with_capacity(128),
             recoil: Recoil::default(),
             trigger: Triggerbot::default(),
             weapon: Weapon::default(),
@@ -322,6 +344,7 @@ impl CS2 {
         offsets.controller.name = client.get("CBasePlayerController", "m_iszPlayerName")?;
         offsets.controller.pawn = client.get("CBasePlayerController", "m_hPawn")?;
         offsets.controller.desired_fov = client.get("CBasePlayerController", "m_iDesiredFOV")?;
+        offsets.controller.owner_entity = client.get("C_BaseEntity", "m_hOwnerEntity")?;
 
         offsets.pawn.health = client.get("C_BaseEntity", "m_iHealth")?;
         offsets.pawn.armor = client.get("C_CSPlayerPawn", "m_ArmorValue")?;
@@ -379,6 +402,41 @@ impl CS2 {
         None
     }
 
+    fn entity_type(&self, entity: u64) -> Option<Entity> {
+        let entity_instance: u64 = self.process.read(entity + 0x10);
+        if entity_instance == 0 {
+            return None;
+        }
+
+        let name_pointer = self.process.read(entity_instance + 0x20);
+        if name_pointer == 0 {
+            return None;
+        }
+
+        let name = self.process.read_string(name_pointer);
+
+        if name.starts_with("weapon_") {
+            if self.entity_has_owner(entity) {
+                return None;
+            }
+            let position = Player::entity(entity).position(self);
+            Some(Entity::Weapon(
+                Weapon::from_str(&name.replace("weapon_", "")),
+                position,
+            ))
+        } else if name.starts_with("smoke") {
+            Some(Entity::Smoke(Smoke::new(entity)))
+        } else {
+            None
+        }
+    }
+
+    fn entity_has_owner(&self, entity: u64) -> bool {
+        self.process
+            .read::<i32>(entity + self.offsets.controller.owner_entity)
+            != -1
+    }
+
     // convars
     fn get_sensitivity(&self) -> f32 {
         self.process.read(self.offsets.convar.sensitivity + 0x48)
@@ -408,4 +466,25 @@ impl CS2 {
             5.0 - (distance / 125.0)
         }
     }
+
+    fn cache_entities(&mut self) {
+        self.entities.clear();
+        for i in 64..=1024 {
+            let Some(entity) = Player::get_client_entity(self, i) else {
+                continue;
+            };
+
+            let Some(entity) = self.entity_type(entity) else {
+                continue;
+            };
+
+            self.entities.push(entity);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Entity {
+    Weapon(Weapon, Vec3),
+    Smoke(Smoke),
 }
