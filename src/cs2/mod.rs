@@ -113,6 +113,7 @@ impl Game for CS2 {
 
     fn data(&self, data: &mut Data) {
         data.players.clear();
+        data.weapons.clear();
         let Some(local_player) = Player::local_player(self) else {
             data.weapon = Weapon::default();
             data.in_game = false;

@@ -514,6 +514,13 @@ impl App {
         {
             self.send_config();
         }
+
+        if ui
+            .checkbox(&mut self.config.hud.dropped_weapons, "Dropped Weapons")
+            .changed()
+        {
+            self.send_config();
+        }
     }
 
     fn hud_right(&mut self, ui: &mut Ui) {
@@ -915,7 +922,7 @@ impl App {
                         data.window_size.y as f32,
                     ),
                 ],
-                Stroke::new(self.config.hud.line_width, color),
+                Stroke::new(self.config.hud.line_width * 3.0, color),
             );
         }
 
