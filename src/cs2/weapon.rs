@@ -61,6 +61,14 @@ pub enum Weapon {
     // Utility
     Taser,
 
+    // Grenades
+    Flashbang,
+    HeGrenade,
+    Smoke,
+    Molotov,
+    Decoy,
+    Incendiary,
+
     // Bomb
     C4,
 }
@@ -137,6 +145,13 @@ impl Weapon {
             "ssg08" => Ssg08,
 
             "taser" => Taser,
+
+            "flashbang" => Flashbang,
+            "hegrenade" => HeGrenade,
+            "smokegrenade" => Smoke,
+            "molotov" => Molotov,
+            "decoy" => Decoy,
+            "incgrenade" => Incendiary,
 
             "c4" => C4,
 
