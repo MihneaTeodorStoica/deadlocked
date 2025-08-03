@@ -63,8 +63,9 @@ impl WeaponClass {
             "awp" | "g3sg1" | "scar20" | "ssg08" => WeaponClass::Sniper,
 
             // Grenades
-            "decoy" | "firebomb" | "flashbang" | "frag_grenade" | "hegrenade" | "incgrenade"
-            | "molotov" | "smokegrenade" => WeaponClass::Grenade,
+            "flashbang" | "hegrenade" | "smokegrenade" | "molotov" | "decoy" | "incgrenade" => {
+                WeaponClass::Grenade
+            }
 
             // Utility
             "taser" => WeaponClass::Utility,
