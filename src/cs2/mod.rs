@@ -193,7 +193,7 @@ impl CS2 {
 
     fn aimbot_config<'a>(&mut self, config: &'a Config) -> &'a AimbotConfig {
         if let Some(weapon_config) = config.aim.weapons.get(&self.weapon) {
-            if weapon_config.aimbot.enabled {
+            if weapon_config.aimbot.enable_override {
                 return &weapon_config.aimbot;
             }
         }
@@ -202,7 +202,7 @@ impl CS2 {
 
     fn rcs_config<'a>(&mut self, config: &'a Config) -> &'a RcsConfig {
         if let Some(weapon_config) = config.aim.weapons.get(&self.weapon) {
-            if weapon_config.rcs.enabled {
+            if weapon_config.rcs.enable_override {
                 return &weapon_config.rcs;
             }
         }
@@ -211,7 +211,7 @@ impl CS2 {
 
     fn triggerbot_config<'a>(&mut self, config: &'a Config) -> &'a TriggerbotConfig {
         if let Some(weapon_config) = config.aim.weapons.get(&self.weapon) {
-            if weapon_config.triggerbot.enabled {
+            if weapon_config.triggerbot.enable_override {
                 return &weapon_config.triggerbot;
             }
         }

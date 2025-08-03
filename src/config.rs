@@ -65,7 +65,7 @@ pub struct WeaponConfig {
 impl WeaponConfig {
     pub fn enabled(enabled: bool) -> Self {
         let aimbot = AimbotConfig {
-            enabled,
+            enable_override: enabled,
             ..Default::default()
         };
         Self {
@@ -78,6 +78,7 @@ impl WeaponConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AimbotConfig {
+    pub enable_override: bool,
     pub enabled: bool,
     pub start_bullet: i32,
     pub visibility_check: bool,
@@ -90,7 +91,8 @@ pub struct AimbotConfig {
 impl Default for AimbotConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enable_override: false,
+            enabled: true,
             start_bullet: 2,
             visibility_check: true,
             flash_check: true,
@@ -103,6 +105,7 @@ impl Default for AimbotConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RcsConfig {
+    pub enable_override: bool,
     pub enabled: bool,
     pub smooth: f32,
 }
@@ -110,6 +113,7 @@ pub struct RcsConfig {
 impl Default for RcsConfig {
     fn default() -> Self {
         Self {
+            enable_override: false,
             enabled: false,
             smooth: 0.3,
         }
@@ -118,6 +122,7 @@ impl Default for RcsConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerbotConfig {
+    pub enable_override: bool,
     pub enabled: bool,
     pub delay: RangeInclusive<u64>,
     pub flash_check: bool,
@@ -130,6 +135,7 @@ pub struct TriggerbotConfig {
 impl Default for TriggerbotConfig {
     fn default() -> Self {
         Self {
+            enable_override: false,
             enabled: false,
             delay: 100..=200,
             flash_check: true,

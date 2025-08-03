@@ -85,7 +85,7 @@ impl App {
 
     fn aimbot_config(&self, weapon: &Weapon) -> &AimbotConfig {
         if let Some(weapon_config) = self.config.aim.weapons.get(weapon) {
-            if weapon_config.aimbot.enabled {
+            if weapon_config.aimbot.enable_override {
                 return &weapon_config.aimbot;
             }
         }
@@ -164,13 +164,19 @@ impl App {
                 }
             });
 
-        let enable_label = if self.aimbot_tab == AimbotTab::Global {
-            "Enable Aimbot"
-        } else {
-            "Enable Override"
-        };
+        if self.aimbot_tab == AimbotTab::Weapon
+            && ui
+                .checkbox(
+                    &mut self.weapon_config().aimbot.enable_override,
+                    "Enable Override",
+                )
+                .changed()
+        {
+            self.send_config();
+        }
+
         if ui
-            .checkbox(&mut self.weapon_config().aimbot.enabled, enable_label)
+            .checkbox(&mut self.weapon_config().aimbot.enabled, "Enable Aimbot")
             .changed()
         {
             self.send_config();
@@ -252,13 +258,22 @@ impl App {
         ui.label("Triggerbot");
         ui.separator();
 
-        let enable_label = if self.aimbot_tab == AimbotTab::Global {
-            "Enable Triggerbot"
-        } else {
-            "Enable Override"
-        };
+        if self.aimbot_tab == AimbotTab::Weapon
+            && ui
+                .checkbox(
+                    &mut self.weapon_config().triggerbot.enable_override,
+                    "Enable Override",
+                )
+                .changed()
+        {
+            self.send_config();
+        }
+
         if ui
-            .checkbox(&mut self.weapon_config().triggerbot.enabled, enable_label)
+            .checkbox(
+                &mut self.weapon_config().triggerbot.enabled,
+                "Enable Triggerbot",
+            )
             .changed()
         {
             self.send_config();
@@ -345,13 +360,19 @@ impl App {
 
         self.section_title(ui, "RCS");
 
-        let enable_label = if self.aimbot_tab == AimbotTab::Global {
-            "Enable RCS"
-        } else {
-            "Enable Override"
-        };
+        if self.aimbot_tab == AimbotTab::Weapon
+            && ui
+                .checkbox(
+                    &mut self.weapon_config().rcs.enable_override,
+                    "Enable Override",
+                )
+                .changed()
+        {
+            self.send_config();
+        }
+
         if ui
-            .checkbox(&mut self.weapon_config().rcs.enabled, enable_label)
+            .checkbox(&mut self.weapon_config().rcs.enabled, "Enable RCS")
             .changed()
         {
             self.send_config();
