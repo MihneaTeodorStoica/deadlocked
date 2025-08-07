@@ -30,6 +30,7 @@ pub struct PlayerData {
     pub has_defuser: bool,
     pub has_helmet: bool,
     pub has_bomb: bool,
+    pub visible: bool,
 }
 
 #[derive(Debug, Default)]

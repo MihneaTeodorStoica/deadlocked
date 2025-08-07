@@ -146,6 +146,7 @@ impl Game for CS2 {
                 has_defuser: player.has_defuser(self),
                 has_helmet: player.has_helmet(self),
                 has_bomb: player.has_bomb(self),
+                visible: player.visible(self, &local_player),
             };
             data.players.push(player_data);
         }
@@ -161,6 +162,7 @@ impl Game for CS2 {
             has_defuser: local_player.has_defuser(self),
             has_helmet: local_player.has_helmet(self),
             has_bomb: local_player.has_bomb(self),
+            visible: true,
         };
 
         data.weapons.clear();

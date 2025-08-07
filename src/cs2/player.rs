@@ -314,6 +314,25 @@ impl Player {
         weapons.contains(&Weapon::C4)
     }
 
+    pub fn visible(&self, cs2: &CS2, local_player: &Player) -> bool {
+        let map_name = cs2.current_map();
+        let bvh_map = cs2.bvh.lock().unwrap();
+        if let Some(bvh) = bvh_map.get(&map_name) {
+            let eye_pos = local_player.eye_position(cs2);
+            if !bvh.has_line_of_sight(eye_pos, self.eye_position(cs2))
+                && !bvh.has_line_of_sight(eye_pos, self.position(cs2))
+            {
+                return false;
+            }
+        } else {
+            let spotted_mask = self.spotted_mask(cs2);
+            if (spotted_mask & (1 << cs2.target.local_pawn_index)) == 0 {
+                return false;
+            }
+        }
+        true
+    }
+
     pub fn crosshair_entity(&self, cs2: &CS2) -> Option<Self> {
         let index: i32 = cs2
             .process
