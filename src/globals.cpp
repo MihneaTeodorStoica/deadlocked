@@ -1,12 +1,13 @@
 #include <glm/glm.hpp>
 #include <mithril/logging.hpp>
+#include <shared_mutex>
 #include <mutex>
 #include <vector>
 
 #include "config.hpp"
 #include "cs2/info.hpp"
 
-std::mutex config_lock;
+std::shared_mutex config_lock;
 std::string current_config = "deadlocked.toml";
 std::vector<std::string> available_configs = ListConfigs();
 Config config = LoadConfig(current_config);

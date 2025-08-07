@@ -1,5 +1,6 @@
 #pragma once
 
+#include <shared_mutex>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -7,7 +8,7 @@
 #include "config.hpp"
 #include "cs2/info.hpp"
 
-extern std::mutex config_lock;
+extern std::shared_mutex config_lock;
 extern std::string current_config;
 extern std::vector<std::string> available_configs;
 extern Config config;

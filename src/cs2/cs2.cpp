@@ -2,9 +2,11 @@
 
 #include <mithril/hex.hpp>
 #include <mithril/logging.hpp>
+#include <atomic>
 #include <optional>
 #include <string>
 #include <thread>
+#include <shared_mutex>
 
 #include "config.hpp"
 #include "cs2/bomb.hpp"
@@ -15,7 +17,7 @@
 #include "math.hpp"
 #include "process.hpp"
 
-bool is_valid {false};
+std::atomic<bool> is_valid {false};
 Process process {};
 Offsets offsets {};
 Target target {};
@@ -23,8 +25,74 @@ glm::vec2 aim_punch {};
 std::vector<Player> players {};
 std::vector<Smoke> smokes {};
 
+void FovLoop() {
+    while (!flags.should_quit) {
+        if (IsValid()) {
+            std::shared_lock<std::shared_mutex> lock(config_lock);
+            FovChanger();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+void FlashLoop() {
+    while (!flags.should_quit) {
+        if (IsValid()) {
+            std::shared_lock<std::shared_mutex> lock(config_lock);
+            NoFlash();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+void RcsLoop() {
+    while (!flags.should_quit) {
+        if (IsValid()) {
+            std::shared_lock<std::shared_mutex> lock(config_lock);
+            Rcs();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+void SmokesLoop() {
+    while (!flags.should_quit) {
+        if (IsValid()) {
+            std::shared_lock<std::shared_mutex> lock(config_lock);
+            Smokes(smokes);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+void AimbotLoop() {
+    while (!flags.should_quit) {
+        if (IsValid()) {
+            std::shared_lock<std::shared_mutex> lock(config_lock);
+            Aimbot();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+void TriggerLoop() {
+    while (!flags.should_quit) {
+        if (IsValid()) {
+            std::shared_lock<std::shared_mutex> lock(config_lock);
+            Triggerbot();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
 void CS2() {
     logging::Info("game thread started");
+    std::thread fov_thread(FovLoop);
+    std::thread flash_thread(FlashLoop);
+    std::thread rcs_thread(RcsLoop);
+    std::thread smokes_thread(SmokesLoop);
+    std::thread aimbot_thread(AimbotLoop);
+    std::thread trigger_thread(TriggerLoop);
     while (true) {
         const auto clock = std::chrono::steady_clock::now();
 
@@ -33,9 +101,7 @@ void CS2() {
         }
 
         if (IsValid()) {
-            config_lock.lock();
             Run();
-            config_lock.unlock();
         } else {
             Setup();
         }
@@ -54,36 +120,40 @@ void CS2() {
             // if it was just a 5 second sleep, it would wait 5 seconds before closing the gui
             // window
             for (i32 i = 0; i < 100; i++) {
-                config_lock.lock();
                 if (flags.should_quit) {
-                    return;
+                    break;
                 }
-                config_lock.unlock();
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
             }
         }
     }
+    fov_thread.join();
+    flash_thread.join();
+    rcs_thread.join();
+    smokes_thread.join();
+    aimbot_thread.join();
+    trigger_thread.join();
 }
 
 bool IsValid() {
     if (!process.pid) {
         return false;
     }
-    return is_valid && ValidatePid(process.pid);
+    return is_valid.load() && ValidatePid(process.pid);
 }
 
 void Setup() {
     const std::optional<i32> pid = GetPid(PROCESS_NAME);
     if (!pid) {
         logging::Debug("game not running");
-        is_valid = false;
+        is_valid.store(false);
         return;
     }
 
     const std::optional<Process> new_process = OpenProcess(*pid);
     if (!new_process) {
         logging::Debug("could not open process");
-        is_valid = false;
+        is_valid.store(false);
         return;
     }
     process = *new_process;
@@ -91,12 +161,12 @@ void Setup() {
 
     const std::optional<Offsets> new_offsets = FindOffsets();
     if (!new_offsets) {
-        is_valid = false;
+        is_valid.store(false);
         return;
     }
     offsets = *new_offsets;
 
-    is_valid = true;
+    is_valid.store(true);
 }
 
 std::optional<Offsets> FindOffsets() {
@@ -997,13 +1067,4 @@ void Run() {
         ClearVisualInfo();
         return;
     }
-
-    FovChanger();
-    NoFlash();
-    Rcs();
-    // todo: smokes
-    Smokes(smokes);
-
-    Aimbot();
-    Triggerbot();
 }

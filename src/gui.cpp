@@ -341,20 +341,21 @@ void Gui() {
         ImGui::EndChild();
 
         // tabs
-        config_lock.lock();
+        {
+            std::unique_lock<std::shared_mutex> cfg_guard(config_lock);
 
-        ImGui::SetCursorPos({sizes.sidebar_width + sizes.spacing, sizes.top_bar_height + 12.0f});
-        const ImVec2 available_main = ImGui::GetContentRegionAvail();
+            ImGui::SetCursorPos({sizes.sidebar_width + sizes.spacing, sizes.top_bar_height + 12.0f});
+            const ImVec2 available_main = ImGui::GetContentRegionAvail();
 
-        const ImVec2 col_size = {
-            (available_main.x - sizes.spacing * 2.0f) / 2, available_main.y - 16.0f};
-        const ImVec2 current_pos = ImGui::GetCursorPos();
-        ImGui::SetNextWindowPos({current_pos.x + 10.0f, current_pos.y + 15.0f});
+            const ImVec2 col_size = {
+                (available_main.x - sizes.spacing * 2.0f) / 2, available_main.y - 16.0f};
+            const ImVec2 current_pos = ImGui::GetCursorPos();
+            ImGui::SetNextWindowPos({current_pos.x + 10.0f, current_pos.y + 15.0f});
 
-        if (active_tab == Tab::Aimbot) {
-            ImGui::BeginChild(
-                "Aimbot", col_size, ImGuiChildFlags_AlwaysUseWindowPadding,
-                ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+            if (active_tab == Tab::Aimbot) {
+                ImGui::BeginChild(
+                    "Aimbot", col_size, ImGuiChildFlags_AlwaysUseWindowPadding,
+                    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
             if (aimbot_global) {
                 Title("Aimbot (Global)");
@@ -1148,7 +1149,7 @@ void Gui() {
         }
 
         ImGui::End();
-        config_lock.unlock();
+        }
 
         ImGui::Render();
         glm::ivec2 overlay_vp_size;
@@ -1171,9 +1172,7 @@ void Gui() {
 
     logging::Info("shutting down...");
 
-    config_lock.lock();
     flags.should_quit = true;
-    config_lock.unlock();
     cs2.join();
 
     ImGui::SetCurrentContext(gui_ctx);

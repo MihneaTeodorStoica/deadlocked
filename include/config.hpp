@@ -6,6 +6,7 @@
 #include <mithril/types.hpp>
 #include <unordered_map>
 #include <vector>
+#include <atomic>
 
 #include "colors.hpp"
 #include "key_code.hpp"
@@ -249,7 +250,7 @@ struct Config {
 };
 
 struct Flags {
-    bool should_quit = false;
+    std::atomic<bool> should_quit {false};
     // whether or not to read memory from file or via process_vm_readv
     bool file_mem = false;
     bool no_visuals = false;
