@@ -408,8 +408,17 @@ impl App {
 
                 self.section_title(ui, "Colors");
 
-                if let Some(color) = self.color_picker(ui, &self.config.player.box_color, "Box") {
-                    self.config.player.box_color = color;
+                if let Some(color) =
+                    self.color_picker(ui, &self.config.player.box_visible_color, "Box (visible)")
+                {
+                    self.config.player.box_visible_color = color;
+                    self.send_config();
+                }
+
+                if let Some(color) =
+                    self.color_picker(ui, &self.config.player.box_invisible_color, "Box (invisible)")
+                {
+                    self.config.player.box_invisible_color = color;
                     self.send_config();
                 }
 
@@ -1063,7 +1072,13 @@ impl App {
         let color = match &self.config.player.draw_box {
             crate::config::DrawMode::None => health_color,
             crate::config::DrawMode::Health => health_color,
-            crate::config::DrawMode::Color => self.config.player.box_color,
+            crate::config::DrawMode::Color => {
+                if player.visible {
+                    self.config.player.box_visible_color
+                } else {
+                    self.config.player.box_invisible_color
+                }
+            }
         };
         let stroke = Stroke::new(self.config.hud.line_width, color);
         let font = egui::FontId::proportional(self.config.hud.font_size);

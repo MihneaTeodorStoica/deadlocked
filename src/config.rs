@@ -185,7 +185,8 @@ pub enum DrawMode {
 pub struct PlayerConfig {
     pub enabled: bool,
     pub draw_box: DrawMode,
-    pub box_color: Color32,
+    pub box_visible_color: Color32,
+    pub box_invisible_color: Color32,
     pub draw_skeleton: DrawMode,
     pub skeleton_color: Color32,
     pub health_bar: bool,
@@ -200,7 +201,8 @@ impl Default for PlayerConfig {
         Self {
             enabled: true,
             draw_box: DrawMode::Color,
-            box_color: Colors::TEXT,
+            box_visible_color: Colors::TEXT,
+            box_invisible_color: Colors::RED,
             draw_skeleton: DrawMode::Health,
             skeleton_color: Colors::TEXT,
             health_bar: true,
