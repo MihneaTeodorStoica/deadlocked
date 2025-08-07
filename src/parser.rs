@@ -151,7 +151,7 @@ pub fn parse_maps(bvh: Arc<Mutex<HashMap<String, Bvh>>>) {
         if bvh_path.exists() {
             let mut bvh_file = File::open(&bvh_path).unwrap();
             if let Some(map_bvh) = Bvh::load(&mut bvh_file) {
-                log::info!("loaded bvh for {map_name}");
+                log::debug!("loaded bvh for {map_name}");
                 bvh.lock().unwrap().insert(map_name, map_bvh);
                 continue;
             }
