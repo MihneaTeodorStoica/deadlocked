@@ -10,7 +10,7 @@ simple cs2 aimbot and esp, for linux only.
 - aimbot
   - fov
   - smoothing
-  - visibility check
+  - visibility check (vpk parsing)
   - head only/whole body
   - flash check
   - fov circle
