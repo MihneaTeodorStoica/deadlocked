@@ -201,10 +201,10 @@ impl Default for PlayerConfig {
         Self {
             enabled: true,
             draw_box: DrawMode::Color,
-            box_visible_color: Colors::TEXT,
-            box_invisible_color: Colors::RED,
+            box_visible_color: Color32::WHITE,
+            box_invisible_color: Color32::RED,
             draw_skeleton: DrawMode::Health,
-            skeleton_color: Colors::TEXT,
+            skeleton_color: Color32::WHITE,
             health_bar: true,
             armor_bar: true,
             player_name: true,

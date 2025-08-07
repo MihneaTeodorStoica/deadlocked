@@ -867,7 +867,7 @@ impl App {
         ctx.set_pixels_per_point(1.0);
         let painter = ctx.debug_painter();
         let font = FontId::proportional(self.config.hud.font_size);
-        let text_stroke = Stroke::new(self.config.hud.line_width, Colors::TEXT);
+        let text_stroke = Stroke::new(self.config.hud.line_width, Color32::WHITE);
 
         let data = &self.data.lock().unwrap();
         if let Some(overlay) = &self.overlay_window {
