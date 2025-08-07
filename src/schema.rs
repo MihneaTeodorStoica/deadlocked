@@ -2,8 +2,6 @@ use std::collections::HashMap;
 
 use crate::process::Process;
 
-// https://bin.sn3k.dev/c/YFXW
-
 pub struct Schema {
     scopes: HashMap<String, ModuleScope>,
 }

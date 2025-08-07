@@ -225,7 +225,7 @@ pub fn parse_maps(bvh: Arc<Mutex<HashMap<String, Bvh>>>) {
         log::info!("parsed bvh for {map_name}");
         bvh.lock().unwrap().insert(map_name, map_bvh);
     }
-    log::info!("decompiled map info");
+    log::info!("loaded map info");
 }
 
 #[derive(PartialEq)]
