@@ -284,10 +284,11 @@ impl Bvh {
         match node {
             BvhNode::Leaf { primitives, .. } => {
                 for &idx in primitives {
-                    if let Some((t, _, _)) = self.triangles[idx].ray_intersect(origin, direction) {
-                        if t >= 0.0 && t <= max_t {
-                            return true;
-                        }
+                    if let Some((t, _, _)) = self.triangles[idx].ray_intersect(origin, direction)
+                        && t >= 0.0
+                        && t <= max_t
+                    {
+                        return true;
                     }
                 }
                 false

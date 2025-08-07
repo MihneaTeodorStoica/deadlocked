@@ -3,7 +3,7 @@ use strum::IntoEnumIterator;
 
 use crate::{constants::cs2, math::angles_to_fov};
 
-use super::{bones::Bones, player::Player, weapon_class::WeaponClass, CS2};
+use super::{CS2, bones::Bones, player::Player, weapon_class::WeaponClass};
 
 #[derive(Debug, Default)]
 pub struct Target {
@@ -67,10 +67,10 @@ impl CS2 {
         if self.target.player.is_none() {
             self.target.reset();
         }
-        if let Some(player) = &self.target.player {
-            if !player.is_valid(self) {
-                self.target.reset();
-            }
+        if let Some(player) = &self.target.player
+            && !player.is_valid(self)
+        {
+            self.target.reset();
         }
         for player in &self.players {
             if !ffa && team == player.team(self) {

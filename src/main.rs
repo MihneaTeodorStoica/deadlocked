@@ -40,21 +40,25 @@ fn main() {
         .parse_env(env)
         .init();
 
+    let args: Vec<String> = std::env::args().collect();
+
     // this runs as x11 for now, because wayland decorations for winit are not good
     // and don't support disabling the maximize button
     unsafe { std::env::remove_var("WAYLAND_DISPLAY") };
 
-    if let Ok(username) = std::env::var("USER") {
-        if username == "root" {
-            error!("start without sudo, and add your user to the input group.");
-            return;
-        }
+    if let Ok(username) = std::env::var("USER")
+        && username == "root"
+    {
+        error!("start without sudo, and add your user to the input group.");
+        return;
     }
 
     let bvh = Arc::new(Mutex::new(HashMap::new()));
     let bvh_game = bvh.clone();
     let bvh_gui = bvh.clone();
-    std::thread::spawn(move || parse_maps(bvh));
+
+    let force_reparse = args.iter().any(|arg| arg == "--force-reparse");
+    std::thread::spawn(move || parse_maps(bvh, force_reparse));
 
     let (tx_game, rx_gui) = mpsc::channel();
     let (tx_gui, rx_game) = mpsc::channel();

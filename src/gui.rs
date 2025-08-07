@@ -86,10 +86,10 @@ impl App {
     }
 
     fn aimbot_config(&self, weapon: &Weapon) -> &AimbotConfig {
-        if let Some(weapon_config) = self.config.aim.weapons.get(weapon) {
-            if weapon_config.aimbot.enable_override {
-                return &weapon_config.aimbot;
-            }
+        if let Some(weapon_config) = self.config.aim.weapons.get(weapon)
+            && weapon_config.aimbot.enable_override
+        {
+            return &weapon_config.aimbot;
         }
         &self.config.aim.global.aimbot
     }
@@ -415,9 +415,11 @@ impl App {
                     self.send_config();
                 }
 
-                if let Some(color) =
-                    self.color_picker(ui, &self.config.player.box_invisible_color, "Box (invisible)")
-                {
+                if let Some(color) = self.color_picker(
+                    ui,
+                    &self.config.player.box_invisible_color,
+                    "Box (invisible)",
+                ) {
                     self.config.player.box_invisible_color = color;
                     self.send_config();
                 }

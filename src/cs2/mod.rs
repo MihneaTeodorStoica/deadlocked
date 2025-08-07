@@ -214,28 +214,28 @@ impl CS2 {
     }
 
     fn aimbot_config<'a>(&mut self, config: &'a Config) -> &'a AimbotConfig {
-        if let Some(weapon_config) = config.aim.weapons.get(&self.weapon) {
-            if weapon_config.aimbot.enable_override {
-                return &weapon_config.aimbot;
-            }
+        if let Some(weapon_config) = config.aim.weapons.get(&self.weapon)
+            && weapon_config.aimbot.enable_override
+        {
+            return &weapon_config.aimbot;
         }
         &config.aim.global.aimbot
     }
 
     fn rcs_config<'a>(&mut self, config: &'a Config) -> &'a RcsConfig {
-        if let Some(weapon_config) = config.aim.weapons.get(&self.weapon) {
-            if weapon_config.rcs.enable_override {
-                return &weapon_config.rcs;
-            }
+        if let Some(weapon_config) = config.aim.weapons.get(&self.weapon)
+            && weapon_config.rcs.enable_override
+        {
+            return &weapon_config.rcs;
         }
         &config.aim.global.rcs
     }
 
     fn triggerbot_config<'a>(&mut self, config: &'a Config) -> &'a TriggerbotConfig {
-        if let Some(weapon_config) = config.aim.weapons.get(&self.weapon) {
-            if weapon_config.triggerbot.enable_override {
-                return &weapon_config.triggerbot;
-            }
+        if let Some(weapon_config) = config.aim.weapons.get(&self.weapon)
+            && weapon_config.triggerbot.enable_override
+        {
+            return &weapon_config.triggerbot;
         }
         &config.aim.global.triggerbot
     }

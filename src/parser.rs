@@ -21,7 +21,7 @@ const RELEASE_URL: &str =
     "https://api.github.com/repos/ValveResourceFormat/ValveResourceFormat/releases/latest";
 const ASSET_NAME: &str = "cli-linux-x64.zip";
 
-pub fn parse_maps(bvh: Arc<Mutex<HashMap<String, Bvh>>>) {
+pub fn parse_maps(bvh: Arc<Mutex<HashMap<String, Bvh>>>, force_reparse: bool) {
     let client = ureq::Agent::new_with_defaults();
 
     let release: serde_json::Value = client
@@ -125,7 +125,7 @@ pub fn parse_maps(bvh: Arc<Mutex<HashMap<String, Bvh>>>) {
         let path = maps_dir.join(file);
         let map_name = file.replace(".vpk", "");
 
-        if maps_dir.join("geometry/maps").join(&map_name).exists() {
+        if maps_dir.join("geometry/maps").join(&map_name).exists() && !force_reparse {
             continue;
         }
 
@@ -148,7 +148,7 @@ pub fn parse_maps(bvh: Arc<Mutex<HashMap<String, Bvh>>>) {
         let bvh_name = format!("{map_name}.bvh");
         let bvh_path = maps_dir.join(bvh_name);
 
-        if bvh_path.exists() {
+        if bvh_path.exists() && !force_reparse {
             let mut bvh_file = File::open(&bvh_path).unwrap();
             if let Some(map_bvh) = Bvh::load(&mut bvh_file) {
                 log::debug!("loaded bvh for {map_name}");

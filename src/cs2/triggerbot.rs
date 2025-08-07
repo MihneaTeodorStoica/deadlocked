@@ -77,12 +77,12 @@ impl CS2 {
     }
 
     pub fn triggerbot_shoot(&mut self, mouse: &mut Mouse) {
-        if let Some(shot_time) = self.trigger.next_shot {
-            if Instant::now() >= shot_time {
-                mouse.left_press();
-                mouse.left_release();
-                self.trigger.next_shot = None;
-            }
+        if let Some(shot_time) = self.trigger.next_shot
+            && Instant::now() >= shot_time
+        {
+            mouse.left_press();
+            mouse.left_release();
+            self.trigger.next_shot = None;
         }
     }
 }
