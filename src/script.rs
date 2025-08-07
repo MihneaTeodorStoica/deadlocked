@@ -50,6 +50,7 @@ impl Script {
 struct LuaVec2(Vec2);
 #[derive(Debug, Clone, Copy)]
 struct LuaVec3(Vec3);
+#[allow(unused)]
 #[derive(Debug, Clone, Copy)]
 struct LuaPlayer(Player);
 
@@ -206,5 +207,5 @@ impl UserData for LuaVec3 {
 }
 
 impl UserData for LuaPlayer {
-    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {}
+    fn add_methods<M: mlua::UserDataMethods<Self>>(_methods: &mut M) {}
 }

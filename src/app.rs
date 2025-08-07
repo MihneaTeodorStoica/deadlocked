@@ -1,7 +1,5 @@
 use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex, mpsc},
-    time::{Duration, Instant},
+    collections::HashMap, path::PathBuf, sync::{mpsc, Arc, Mutex}, time::{Duration, Instant}
 };
 
 use egui::{FontData, FontDefinitions, Stroke, Style};
@@ -13,17 +11,9 @@ use winit::{
 };
 
 use crate::{
-    color::Colors,
-    config::{
-        GameStatus, Config, DEFAULT_CONFIG_NAME, available_configs, get_config_path,
-        parse_config, write_config,
-    },
-    cs2::weapon::Weapon,
-    data::Data,
-    gui::{AimbotTab, Tab},
-    message::Message,
-    mouse::DeviceStatus,
-    window_context::WindowContext,
+    bvh::Bvh, color::Colors, config::{
+        available_configs, exe_path, parse_config, write_config, Config, GameStatus, DEFAULT_CONFIG_NAME
+    }, cs2::weapon::Weapon, data::Data, gui::{AimbotTab, Tab}, message::Message, mouse::DeviceStatus, window_context::WindowContext
 };
 
 const FRAME_RATE: u64 = 120;
@@ -36,11 +26,13 @@ pub struct App {
     pub overlay_window: Option<WindowContext>,
     pub overlay_gl: Option<Arc<glow::Context>>,
     pub overlay_glow: Option<egui_glow::EguiGlow>,
-    pub next_frame_time: Instant,
+    next_frame_time: Instant,
 
     pub tx: mpsc::Sender<Message>,
     pub rx: mpsc::Receiver<Message>,
     pub data: Arc<Mutex<Data>>,
+    #[allow(unused)]
+    pub bvh: Arc<Mutex<HashMap<String, Bvh>>>,
 
     pub status: GameStatus,
     pub mouse_status: DeviceStatus,
@@ -60,11 +52,12 @@ impl App {
         tx: mpsc::Sender<Message>,
         rx: mpsc::Receiver<Message>,
         data: Arc<Mutex<Data>>,
+        bvh: Arc<Mutex<HashMap<String,Bvh>>>,
     ) -> Self {
         // read config
-        let config = parse_config(&get_config_path().join(DEFAULT_CONFIG_NAME));
+        let config = parse_config(&exe_path().join(DEFAULT_CONFIG_NAME));
         // override config if invalid
-        write_config(&config, &get_config_path().join(DEFAULT_CONFIG_NAME));
+        write_config(&config, &exe_path().join(DEFAULT_CONFIG_NAME));
 
         Self {
             gui_window: None,
@@ -79,8 +72,9 @@ impl App {
             tx,
             rx,
             data,
+            bvh,
             config,
-            current_config: get_config_path().join(DEFAULT_CONFIG_NAME),
+            current_config: exe_path().join(DEFAULT_CONFIG_NAME),
             available_configs: available_configs(),
             new_config_name: String::new(),
 

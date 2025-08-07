@@ -10,6 +10,7 @@ pub struct Data {
     pub is_ffa: bool,
     pub weapon: Weapon,
     pub players: Vec<PlayerData>,
+    pub local_player: PlayerData,
     pub weapons: Vec<(Weapon, Vec3)>,
     pub bomb: BombData,
     pub view_matrix: Mat4,

@@ -1,20 +1,13 @@
 use std::{
-    sync::{Arc, Mutex, mpsc},
-    thread::sleep,
-    time::Instant,
+    collections::HashMap, sync::{mpsc, Arc, Mutex}, thread::sleep, time::Instant
 };
 
 use log::{debug, info};
 
 use crate::{
-    config::{
-        GameStatus, Config, DEFAULT_CONFIG_NAME, LOOP_DURATION, SLEEP_DURATION, get_config_path,
-        parse_config,
-    },
-    cs2::CS2,
-    data::Data,
-    message::Message,
-    mouse::{DeviceStatus, Mouse},
+    bvh::Bvh, config::{
+        exe_path, parse_config, Config, GameStatus, DEFAULT_CONFIG_NAME, LOOP_DURATION, SLEEP_DURATION
+    }, cs2::CS2, data::Data, message::Message, mouse::{DeviceStatus, Mouse}
 };
 
 pub trait Game: std::fmt::Debug {
@@ -38,17 +31,18 @@ impl GameManager {
         tx: mpsc::Sender<Message>,
         rx: mpsc::Receiver<Message>,
         data: Arc<Mutex<Data>>,
+        bvh: Arc<Mutex<HashMap<String, Bvh>>>,
     ) -> Self {
         let mouse = Mouse::open();
 
-        let config = parse_config(&get_config_path().join(DEFAULT_CONFIG_NAME));
+        let config = parse_config(&exe_path().join(DEFAULT_CONFIG_NAME));
         let mut aimbot = Self {
             tx,
             rx,
             data,
             config,
             mouse,
-            aimbot: CS2::new(),
+            aimbot: CS2::new(bvh),
         };
 
         aimbot.send_message(Message::MouseStatus(aimbot.mouse.status.clone()));

@@ -1,4 +1,8 @@
-use std::time::Instant;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 
 use glam::{IVec2, Mat4, Vec2, Vec3};
 use log::{debug, info, warn};
@@ -6,6 +10,7 @@ use player::Player;
 use rcs::Recoil;
 
 use crate::{
+    bvh::Bvh,
     config::{AimbotConfig, Config, RcsConfig, TriggerbotConfig},
     constants::cs2::{self, TEAM_CT, TEAM_T},
     cs2::{
@@ -40,6 +45,7 @@ pub struct CS2 {
     is_valid: bool,
     process: Process,
     offsets: Offsets,
+    bvh: Arc<Mutex<HashMap<String, Bvh>>>,
     target: Target,
     players: Vec<Player>,
     entities: Vec<Entity>,
@@ -144,6 +150,19 @@ impl Game for CS2 {
             data.players.push(player_data);
         }
 
+        data.local_player = PlayerData {
+            health: local_player.health(self),
+            armor: local_player.armor(self),
+            position: local_player.position(self),
+            head: local_player.bone_position(self, Bones::Head.u64()),
+            name: local_player.name(self),
+            weapon: local_player.weapon(self),
+            bones: local_player.all_bones(self),
+            has_defuser: local_player.has_defuser(self),
+            has_helmet: local_player.has_helmet(self),
+            has_bomb: local_player.has_bomb(self),
+        };
+
         data.weapons.clear();
         for entity in &self.entities {
             if let Entity::Weapon(weapon, position) = entity {
@@ -177,11 +196,12 @@ impl Game for CS2 {
 }
 
 impl CS2 {
-    pub fn new() -> Self {
+    pub fn new(bvh: Arc<Mutex<HashMap<String, Bvh>>>) -> Self {
         Self {
             is_valid: false,
             process: Process::new(-1),
             offsets: Offsets::default(),
+            bvh,
             target: Target::default(),
             players: Vec::with_capacity(64),
             entities: Vec::with_capacity(128),
@@ -314,13 +334,13 @@ impl CS2 {
         offsets.direct.planted_c4 = self.process.get_relative_address(planted_c4, 0x03, 0x0F);
 
         let Some(global_vars) = self.process.scan(
-            "8D ? ? ? ? ? 48 89 35 ? ? ? ? 48 89 ? ? C3",
+            "48 8D 05 ? ? ? ? 48 8B 00 8B 50 ? 31 C0 E8 ? ? ? ? 48 8D 95",
             offsets.library.client,
         ) else {
             warn!("could not find global vars offset");
             return None;
         };
-        offsets.direct.global_vars = self.process.get_relative_address(global_vars, 0x09, 0x0D);
+        offsets.direct.global_vars = self.process.get_relative_address(global_vars, 0x03, 0x07);
 
         let Some(ffa_address) = self
             .process
@@ -458,6 +478,12 @@ impl CS2 {
                 + (((button.u64() >> 5) * 4) + self.offsets.direct.button_state),
         );
         ((value >> (button.u64() & 31)) & 1) != 0
+    }
+
+    fn current_map(&self) -> String {
+        let global_vars: u64 = self.process.read(self.offsets.direct.global_vars);
+        self.process
+            .read_string(self.process.read(global_vars + 0x190))
     }
 
     fn distance_scale(&self, distance: f32) -> f32 {

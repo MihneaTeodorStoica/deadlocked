@@ -1,17 +1,19 @@
 use egui::{
-    Align, Align2, Button, Color32, Context, DragValue, FontId, Painter, Sense, Stroke, Ui, pos2,
+    Align, Align2, Button, Color32, Context, DragValue, FontId, Painter, Pos2, Sense, Stroke, Ui,
+    pos2,
 };
 use egui_glow::glow;
-use glam::vec3;
+use glam::{Vec3, vec3};
 use log::info;
 use strum::IntoEnumIterator;
 
 use crate::{
     app::App,
+    bvh::{Aabb, Triangle},
     color::Colors,
     config::{
         AimbotConfig, Config, DrawMode, GameStatus, VERSION, WeaponConfig, available_configs,
-        delete_config, get_config_path, parse_config, write_config,
+        delete_config, exe_path, parse_config, write_config,
     },
     constants::cs2,
     cs2::{bones::Bones, weapon::Weapon, weapon_class::WeaponClass},
@@ -705,7 +707,7 @@ impl App {
                         self.new_config_name.push_str(".toml");
                     }
                     self.config = Config::default();
-                    let path = get_config_path().join(&self.new_config_name);
+                    let path = exe_path().join(&self.new_config_name);
                     write_config(&self.config, &path);
                     self.new_config_name.clear();
                     self.current_config = path;
@@ -998,6 +1000,61 @@ impl App {
                 ],
                 text_stroke,
             );
+        }
+    }
+
+    #[allow(unused)]
+    fn triangle(&self, triangle: &Triangle, data: &Data, painter: &Painter) {
+        let Some(v1) = world_to_screen(&triangle.v0, data) else {
+            return;
+        };
+        let Some(v2) = world_to_screen(&triangle.v1, data) else {
+            return;
+        };
+        let Some(v3) = world_to_screen(&triangle.v2, data) else {
+            return;
+        };
+        painter.line(vec![v1, v2, v3], Stroke::new(1.0, Color32::WHITE));
+    }
+
+    #[allow(unused)]
+    fn aabb_box(&self, aabb: &Aabb, data: &Data, painter: &Painter) {
+        let min = aabb.min();
+        let max = aabb.max();
+
+        let corners = [
+            Vec3::new(min.x, min.y, min.z),
+            Vec3::new(max.x, min.y, min.z),
+            Vec3::new(min.x, max.y, min.z),
+            Vec3::new(max.x, max.y, min.z),
+            Vec3::new(min.x, min.y, max.z),
+            Vec3::new(max.x, min.y, max.z),
+            Vec3::new(min.x, max.y, max.z),
+            Vec3::new(max.x, max.y, max.z),
+        ];
+
+        let screen_points: Vec<Option<Pos2>> =
+            corners.iter().map(|p| world_to_screen(p, data)).collect();
+
+        let edges = [
+            (0, 1),
+            (1, 3),
+            (3, 2),
+            (2, 0),
+            (4, 5),
+            (5, 7),
+            (7, 6),
+            (6, 4),
+            (0, 4),
+            (1, 5),
+            (2, 6),
+            (3, 7),
+        ];
+
+        for (i, j) in edges.iter() {
+            if let (Some(p0), Some(p1)) = (screen_points[*i], screen_points[*j]) {
+                painter.line_segment([p0, p1], Stroke::new(1.0, Color32::WHITE));
+            }
         }
     }
 

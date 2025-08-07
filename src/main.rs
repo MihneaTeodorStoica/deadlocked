@@ -1,13 +1,15 @@
 use std::{
+    collections::HashMap,
     io::Write,
     sync::{Arc, Mutex, mpsc},
 };
 
 use log::{error, info};
 
-use crate::{app::App, data::Data};
+use crate::{app::App, data::Data, parser::parse_maps};
 
 mod app;
+mod bvh;
 mod color;
 mod config;
 mod constants;
@@ -20,6 +22,7 @@ mod key_codes;
 mod math;
 mod message;
 mod mouse;
+mod parser;
 mod process;
 mod schema;
 mod script;
@@ -48,19 +51,24 @@ fn main() {
         }
     }
 
-    let (tx_aimbot, rx_gui) = mpsc::channel();
-    let (tx_gui, rx_aimbot) = mpsc::channel();
+    let bvh = Arc::new(Mutex::new(HashMap::new()));
+    let bvh_game = bvh.clone();
+    let bvh_gui = bvh.clone();
+    std::thread::spawn(move || parse_maps(bvh));
+
+    let (tx_game, rx_gui) = mpsc::channel();
+    let (tx_gui, rx_game) = mpsc::channel();
     let data = Arc::new(Mutex::new(Data::default()));
-    let data_aimbot = data.clone();
+    let data_game = data.clone();
 
     std::thread::spawn(move || {
-        game::GameManager::new(tx_aimbot, rx_aimbot, data_aimbot).run();
+        game::GameManager::new(tx_game, rx_game, data_game, bvh_game).run();
     });
     info!("started game thread");
 
     let event_loop = winit::event_loop::EventLoop::new().unwrap();
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
-    let mut app = App::new(tx_gui, rx_gui, data);
+    let mut app = App::new(tx_gui, rx_gui, data, bvh_gui);
     event_loop.run_app(&mut app).unwrap();
     info!("exiting");
 }

@@ -26,9 +26,22 @@ impl CS2 {
         }
 
         if config.visibility_check {
-            let spotted_mask = target.spotted_mask(self);
-            if (spotted_mask & (1 << self.target.local_pawn_index)) == 0 {
-                return;
+            let map_name = self.current_map();
+            let bvh_map = self.bvh.lock().unwrap();
+            if let Some(bvh) = bvh_map.get(&map_name) {
+                let eye_pos = local_player.eye_position(self);
+                if !bvh.has_line_of_sight(eye_pos, target.eye_position(self))
+                    && !bvh.has_line_of_sight(eye_pos, target.position(self))
+                {
+                    dbg!("no line of sight");
+                    return;
+                }
+                dbg!("line of sight");
+            } else {
+                let spotted_mask = target.spotted_mask(self);
+                if (spotted_mask & (1 << self.target.local_pawn_index)) == 0 {
+                    return;
+                }
             }
         }
 
